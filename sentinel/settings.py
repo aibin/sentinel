@@ -10,7 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +25,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-nlo2!!3&*k493^b_mavss9wpme8=zz3-rp#1#n--d&e%j96hn!"
+SECRET_KEY = os.getenv(
+    "SECRET_KEY", "django-insecure-nlo2!!3&*k493^b_mavss9wpme8=zz3-rp#1#n--d&e%j96hn!"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
+ENV = os.getenv("ENV", "local")
 
-ALLOWED_HOSTS = []
+
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 
 
 # Application definition
@@ -70,10 +79,10 @@ MIDDLEWARE = [
 ALLAUTH_DEFAULT_AUTO_FIELD = "sentinel.fields.ShortUUIDField"
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if ENV == "local" else "https"
 ACCOUNT_MAX_EMAIL_ADDRESSES = 1
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
-ACCOUNT_AUTHENTICATION_METHOD = "email"  # TODO Get this from the environment
+ACCOUNT_AUTHENTICATION_METHOD = os.getenv("ACCOUNT_AUTHENTICATION_METHOD", "email")
 ACCOUNT_USERNAME_REQUIRED = False if ACCOUNT_AUTHENTICATION_METHOD == "email" else True
 
 
