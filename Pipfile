@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+django-allauth = {extras = ["socialaccount"], version = "*"}
+shortuuid = "*"
+
+[dev-packages]
+isort = "*"
+black = "*"
+ipython = "*"
+djlint = "*"
+django-debug-toolbar = "*"
+
+[requires]
+python_version = "3.11"
