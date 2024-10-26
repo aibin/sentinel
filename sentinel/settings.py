@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.facebook",
     "allauth.socialaccount.providers.microsoft",
     "allauth.socialaccount.providers.slack",
+    "oidc_provider",
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -76,15 +77,15 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-ALLAUTH_DEFAULT_AUTO_FIELD = "sentinel.fields.ShortUUIDField"
 ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_EMAIL_VERIFICATION = "optional"
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if ENV == "local" else "https"
 ACCOUNT_MAX_EMAIL_ADDRESSES = 1
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_AUTHENTICATION_METHOD = os.getenv("ACCOUNT_AUTHENTICATION_METHOD", "email")
 ACCOUNT_USERNAME_REQUIRED = False if ACCOUNT_AUTHENTICATION_METHOD == "email" else True
 
+LOGIN_URL = "/accounts/login/"
 
 if DEBUG:
     INSTALLED_APPS.append("debug_toolbar")

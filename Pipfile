@@ -8,6 +8,8 @@ django = "*"
 django-allauth = {extras = ["socialaccount"], version = "*"}
 shortuuid = "*"
 python-dotenv = "*"
+pycryptodome = "*"
+pyjwkest = "*"
 
 [dev-packages]
 isort = "*"
