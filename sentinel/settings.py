@@ -87,8 +87,11 @@ ACCOUNT_USERNAME_REQUIRED = False if ACCOUNT_AUTHENTICATION_METHOD == "email" el
 
 LOGIN_URL = "/accounts/login/"
 
+DEFAULT_ORG_NAME = os.getenv("DEFAULT_ORG_NAME", "Sentinel")
+
 if DEBUG:
     INSTALLED_APPS.append("debug_toolbar")
+    INSTALLED_APPS.append("django_extensions")
     MIDDLEWARE.insert(8, "debug_toolbar.middleware.DebugToolbarMiddleware")
     INTERNAL_IPS = [
         "127.0.0.1",

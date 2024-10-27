@@ -6,7 +6,15 @@ from django.contrib import admin
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 
-from oidc_provider.models import Client, Code, RSAKey, Token
+from oidc_provider.models import (
+    Client,
+    Code,
+    Connection,
+    Organization,
+    OrganizationUser,
+    RSAKey,
+    Token,
+)
 
 
 class ClientForm(ModelForm):
@@ -123,3 +131,18 @@ class TokenAdmin(admin.ModelAdmin):
 class RSAKeyAdmin(admin.ModelAdmin):
 
     readonly_fields = ["kid"]
+
+
+@admin.register(Organization)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = ["id", "name", "default"]
+
+
+@admin.register(OrganizationUser)
+class OrganizationUserAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(Connection)
+class ConnectionAdmin(admin.ModelAdmin):
+    pass

@@ -3,11 +3,12 @@ import binascii
 import json
 from hashlib import md5, sha256
 
+from django.apps import apps
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-
 from shortuuid.django_fields import ShortUUIDField
 
 CLIENT_TYPE_CHOICES = [
@@ -320,3 +321,187 @@ class RSAKey(models.Model):
         return "{0}".format(
             md5(self.key.encode("utf-8")).hexdigest() if self.key else ""
         )
+
+
+class Organization(models.Model):
+    id = ShortUUIDField(primary_key=True, editable=False)
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
+    # Logo
+    logo = models.FileField(
+        blank=True,
+        default="",
+        upload_to="oidc_provider/organizations",
+        verbose_name=_("Logo Image"),
+    )
+
+    website_url = models.CharField(
+        max_length=255, blank=True, default="", verbose_name=_("Website URL")
+    )
+    terms_url = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name=_("Terms URL"),
+        help_text=_("External reference to the privacy policy of the client."),
+    )
+    contact_email = models.CharField(
+        max_length=255, blank=True, default="", verbose_name=_("Contact Email")
+    )
+
+    default = models.BooleanField(
+        default=False,
+        verbose_name=_("Default"),
+        help_text=_("Set this connection as default."),
+    )
+
+    @classmethod
+    def get_default(cls):
+        return cls.objects.get(default=True)
+
+    def save(self, *args, **kwargs):
+        if self.default:
+            # Select all other active connections
+            qs = type(self).objects.filter(default=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            # Set default to False
+            qs.update(default=False)
+
+        super().save(*args, **kwargs)
+
+    def get_all_users(self):
+        User = apps.get_model(settings.AUTH_USER_MODEL)
+        if self.default:
+            # Get AUTH_USER_MODEL.
+            return User.objects.all()
+        else:
+            # Return user queryset from organization users model
+            org_users = OrganizationUser.objects.filter(organization=self).values_list(
+                "user", flat=True
+            )
+            return User.objects.filter(id__in=org_users)
+
+    def get_userroles_for_client(self, user, client):
+        connection_grants = []
+        user_roles = []
+        if self.default:
+            connection_grants = Group.objects.all()
+            user_roles = user.groups.all()
+        else:
+            connection = Connection.objects.get(client=client, organization=self)
+            connection_grants = connection.grants.all()
+            user_connection_roles = OrganizationUser.objects.get(
+                organization=self, user=user
+            ).roles.all()
+            user_roles = user.groups.union(user_connection_roles)
+
+        roles = []
+        for role in user_roles:
+            if role in connection_grants:
+                roles.append(role)
+        return roles
+
+    def __str__(self):
+        return "{0}".format(self.name)
+
+
+class Connection(models.Model):
+    # Organization
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        related_name="connections",
+    )
+
+    # Client
+    client = models.ForeignKey(
+        Client,
+        verbose_name=_("Client"),
+        on_delete=models.CASCADE,
+        related_name="connections",
+    )
+
+    # Enable or Disable
+    active = models.BooleanField(
+        default=True,
+        verbose_name=_("Enabled"),
+        help_text=_("Enable or Disable this connection."),
+    )
+
+    # A list of emails domains that are allowed to register
+    _email_domains = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("Email Domains"),
+        help_text=_("Enter each domain on a new line."),
+    )
+
+    grants = models.ManyToManyField(Group, verbose_name=_("Grants"))
+
+    enable_mfa = models.BooleanField(
+        default=False,
+        verbose_name=_("Enable MFA"),
+        help_text=_("Enable Multi-Factor Authentication for this connection."),
+    )
+
+    # Prevent user auth if at least user role not in grants
+    prevent_auth = models.BooleanField(
+        default=False,
+        verbose_name=_("Prevent Auth"),
+        help_text=_("Prevent user authentication if at least user role not in grants."),
+    )
+
+    # Include user roles in id_token
+    include_roles = models.BooleanField(
+        default=False,
+        verbose_name=_("Include Roles"),
+        help_text=_("Include user roles in id_token."),
+    )
+
+    # Allow nrew user registration
+    allow_registration = models.BooleanField(
+        default=False,
+        verbose_name=_("Allow Registration"),
+        help_text=_("Allow new user registration."),
+    )
+
+    class Meta:
+        unique_together = ("client", "organization")
+
+    @property
+    def email_domains(self):
+        return self._email_domains.splitlines()
+
+    @email_domains.setter
+    def email_domains(self, value):
+        self._email_domains = "\n".join(value)
+
+    def __str__(self):
+        return "{0} - {1}".format(self.client, self.organization)
+
+
+class OrganizationUser(models.Model):
+    id = ShortUUIDField(primary_key=True, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        related_name="users",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("User"),
+        on_delete=models.CASCADE,
+        related_name="organizations",
+    )
+    roles = models.ManyToManyField(Group, verbose_name=_("Roles"), blank=True)
+
+    class Meta:
+        unique_together = ("organization", "user")
+
+    def __str__(self):
+        return "{0} - {1}".format(self.organization, self.user)
+
+    def __unicode__(self):
+        return self.__str__()

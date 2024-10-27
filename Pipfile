@@ -17,6 +17,7 @@ black = "*"
 ipython = "*"
 djlint = "*"
 django-debug-toolbar = "*"
+django-extensions = "*"
 
 [requires]
 python_version = "3.11"
