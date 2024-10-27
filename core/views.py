@@ -23,23 +23,15 @@ class LoginView(View):
         password = request.POST.get("password")
         next_url = request.GET.get("next", "")
 
-        request_org_id = request.GET.get("organization_id")
-        session_org_id = request.session.get("organization_id")
-        if request_org_id and request_org_id != session_org_id:
-            messages.error(request, "Invalid organization.")
-            return render(request, "core/login.html")
-
-        organization = Organization.objects.get(id=request_org_id)
-
         # Check if user is part of the organization
-        user_exist = OrganizationUser.objects.filter(
-            user__email=email, organization=organization
-        ).exists()
+        user_exist = request.organization.get_all_users().filter(email=email).exists()
         if not user_exist:
             messages.error(
                 request, "Invalid user. Please enter a valid email and password."
             )
-            return render(request, "core/login.html", {"name": organization.name})
+            return render(
+                request, "core/login.html", {"name": request.organization.name}
+            )
 
         # Authenticate the user
         user = authenticate(request, username=email, password=password)
@@ -59,7 +51,9 @@ class LoginView(View):
         else:
             # Add an error message for invalid credentials
             messages.error(request, "Invalid email or password. Please try again.")
-            return render(request, "core/login.html", {"name": organization.name})
+            return render(
+                request, "core/login.html", {"name": request.organization.name}
+            )
 
 
 class ForgotPasswordView(View):

@@ -103,6 +103,15 @@ def client_id_from_id_token(id_token):
     return aud
 
 
+def organization_id_from_id_token(id_token):
+    """
+    Extracts the organization id from a JSON Web Token (JWT).
+    Returns a string or None.
+    """
+    payload = JWT().unpack(id_token).payload()
+    return payload.get("org_id", None)
+
+
 def create_token(user, client, scope, organization, id_token_dic=None):
     """
     Create and populate a Token object.

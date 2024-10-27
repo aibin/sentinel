@@ -304,7 +304,7 @@ class UserConsent(BaseCodeTokenModel):
     date_given = models.DateTimeField(verbose_name=_("Date Given"))
 
     class Meta:
-        unique_together = ("user", "client")
+        unique_together = ("user", "client", "organization")
 
 
 class RSAKey(models.Model):
@@ -395,12 +395,16 @@ class Organization(models.Model):
             connection_grants = Group.objects.all()
             user_roles = user.groups.all()
         else:
-            connection = Connection.objects.get(client=client, organization=self)
-            connection_grants = connection.grants.all()
-            user_connection_roles = OrganizationUser.objects.get(
-                organization=self, user=user
-            ).roles.all()
-            user_roles = user.groups.union(user_connection_roles)
+            try:
+                connection = Connection.objects.get(client=client, organization=self)
+                connection_grants = connection.grants.all()
+                user_connection_roles = OrganizationUser.objects.get(
+                    organization=self, user=user
+                ).roles.all()
+                user_roles = user.groups.union(user_connection_roles)
+            except Connection.DoesNotExist:
+                connection_grants = Group.objects.all()
+                user_roles = user.groups.all()
 
         roles = []
         for role in user_roles:

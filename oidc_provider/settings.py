@@ -3,6 +3,7 @@ import random
 import string
 
 from django.conf import settings
+from django.urls import reverse
 
 
 class DefaultSettings(object):
@@ -13,10 +14,11 @@ class DefaultSettings(object):
 
     @property
     def OIDC_LOGIN_URL(self):
-        """
-        OPTIONAL. Used to log the user in. By default Django's LOGIN_URL will be used.
-        """
-        return settings.LOGIN_URL
+        return reverse("core:login")
+
+    @property
+    def OIDC_LOGOUT_REDIRECT_URL(self):
+        return reverse("core:logout-success")
 
     @property
     def SITE_URL(self):

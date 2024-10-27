@@ -3,6 +3,7 @@ import logging
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from Cryptodome.PublicKey import RSA
+from django.conf import settings as django_settings
 from django.contrib.auth import logout as django_user_logout
 from django.contrib.auth.views import LogoutView, redirect_to_login
 from django.core.cache import cache
@@ -40,7 +41,10 @@ from oidc_provider.lib.utils.common import (
     redirect,
 )
 from oidc_provider.lib.utils.oauth2 import protected_resource_view
-from oidc_provider.lib.utils.token import client_id_from_id_token
+from oidc_provider.lib.utils.token import (
+    client_id_from_id_token,
+    organization_id_from_id_token,
+)
 from oidc_provider.models import Client, ResponseType, RSAKey
 
 logger = logging.getLogger(__name__)
@@ -125,6 +129,7 @@ class AuthorizeView(View):
                 # Generate hidden inputs for the form.
                 context = {
                     "params": authorize.params,
+                    "request": request,
                 }
                 hidden_inputs = render_to_string(
                     "oidc_provider/hidden_inputs.html", context
@@ -376,7 +381,7 @@ class EndSessionView(LogoutView):
         state = request.GET.get("state", "")
         client = None
 
-        next_page = settings.get("OIDC_LOGIN_URL")
+        next_page = settings.get("OIDC_LOGOUT_REDIRECT_URL")
         after_end_session_hook = settings.get(
             "OIDC_AFTER_END_SESSION_HOOK", import_str=True
         )
@@ -406,8 +411,15 @@ class EndSessionView(LogoutView):
             next_page=next_page,
         )
 
-        self.next_page = next_page
-        return super(EndSessionView, self).dispatch(request, *args, **kwargs)
+        organization_id = organization_id_from_id_token(id_token_hint)
+        if organization_id:
+            response = redirect(next_page)
+            response.delete_cookie(
+                f"{django_settings.SESSION_COOKIE_NAME}_{organization_id}"
+            )
+            return response
+
+        return redirect(next_page)
 
 
 class CheckSessionIframeView(View):
