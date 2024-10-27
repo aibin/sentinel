@@ -151,21 +151,13 @@ class AuthorizeEndpoint(object):
             client=self.client,
             scope=self.params["scope"],
             nonce=self.params["nonce"],
+            organization=self.request.organization,
             is_authentication=self.is_authentication,
             code_challenge=self.params["code_challenge"],
             code_challenge_method=self.params["code_challenge_method"],
         )
 
         return code
-
-    def create_token(self):
-        token = create_token(
-            user=self.request.user,
-            client=self.client,
-            scope=self.params["scope"],
-        )
-
-        return token
 
     def create_response_uri(self):
         uri = urlsplit(self.params["redirect_uri"])
@@ -182,7 +174,12 @@ class AuthorizeEndpoint(object):
                     self.params["state"] if self.params["state"] else ""
                 )
             elif self.grant_type in ["implicit", "hybrid"]:
-                token = self.create_token()
+                token = create_token(
+                    user=self.request.user,
+                    client=self.client,
+                    scope=self.params["scope"],
+                    organization=self.request.organization,
+                )
 
                 # Check if response_type must include access_token in the response.
                 if self.params["response_type"] in [
@@ -292,6 +289,7 @@ class AuthorizeEndpoint(object):
         uc, created = UserConsent.objects.get_or_create(
             user=self.request.user,
             client=self.client,
+            organization=self.request.organization,
             defaults={
                 "expires_at": expires_at,
                 "date_given": date_given,
@@ -314,7 +312,11 @@ class AuthorizeEndpoint(object):
         """
         value = False
         try:
-            uc = UserConsent.objects.get(user=self.request.user, client=self.client)
+            uc = UserConsent.objects.get(
+                user=self.request.user,
+                client=self.client,
+                organization=self.request.organization,
+            )
             if (set(self.params["scope"]).issubset(uc.scope)) and not (
                 uc.has_expired()
             ):

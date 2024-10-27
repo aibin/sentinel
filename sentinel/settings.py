@@ -46,48 +46,32 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "allauth",
-    "allauth.account",
-    # Optional -- requires install using `django-allauth[socialaccount]`.
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.github",
-    "allauth.socialaccount.providers.google",
-    "allauth.socialaccount.providers.twitter",
-    "allauth.socialaccount.providers.facebook",
-    "allauth.socialaccount.providers.microsoft",
-    "allauth.socialaccount.providers.slack",
+    "core",
     "oidc_provider",
 ]
 
 AUTHENTICATION_BACKENDS = [
-    # Needed to login by username in Django admin, regardless of `allauth`
     "django.contrib.auth.backends.ModelBackend",
-    # `allauth` specific authentication methods, such as login by email
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
+    "oidc_provider.middleware.SentinelSessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
 ]
 
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = "optional" if DEBUG else "mandatory"
-ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if ENV == "local" else "https"
-ACCOUNT_MAX_EMAIL_ADDRESSES = 1
-ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
-ACCOUNT_AUTHENTICATION_METHOD = os.getenv("ACCOUNT_AUTHENTICATION_METHOD", "email")
-ACCOUNT_USERNAME_REQUIRED = False if ACCOUNT_AUTHENTICATION_METHOD == "email" else True
+LOGIN_URL = "/account/login/"
 
-LOGIN_URL = "/accounts/login/"
+SESSION_COOKIE_NAME = "oidc_session_id"
 
 DEFAULT_ORG_NAME = os.getenv("DEFAULT_ORG_NAME", "Sentinel")
+DEFAULT_LOGIN_FIELD = os.getenv("DEFAULT_LOGIN_FIELD", "email")
+
+AUTH_USER_MODEL = "core.User"
 
 if DEBUG:
     INSTALLED_APPS.append("debug_toolbar")

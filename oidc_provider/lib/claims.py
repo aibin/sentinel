@@ -31,6 +31,7 @@ STANDARD_CLAIMS = {
         "postal_code": "",
         "country": "",
     },
+    "roles": [],
 }
 
 
@@ -203,4 +204,8 @@ class StandardScopeClaims(ScopeClaims):
             }
         }
 
+        return dic
+
+    def scope_roles(self):
+        dic = {"roles": self.userinfo.get("roles")}
         return dic

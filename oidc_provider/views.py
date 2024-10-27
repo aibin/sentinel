@@ -54,6 +54,11 @@ class AuthorizeView(View):
     def get(self, request, *args, **kwargs):
         authorize = self.authorize_endpoint_class(request)
 
+        login_url = settings.get("OIDC_LOGIN_URL")
+        # Add organization_id from request.organization
+        if hasattr(request, "organization"):
+            login_url = f"{login_url}?organization_id={request.organization.id}"
+
         try:
             authorize.validate_params()
 
@@ -75,9 +80,7 @@ class AuthorizeView(View):
                     else:
                         django_user_logout(request)
                         next_page = strip_prompt_login(request.get_full_path())
-                        return redirect_to_login(
-                            next_page, settings.get("OIDC_LOGIN_URL")
-                        )
+                        return redirect_to_login(next_page, login_url)
 
                 if "select_account" in authorize.params["prompt"]:
                     # TODO: see how we can support multiple accounts for the end-user.
@@ -89,9 +92,7 @@ class AuthorizeView(View):
                         )
                     else:
                         django_user_logout(request)
-                        return redirect_to_login(
-                            request.get_full_path(), settings.get("OIDC_LOGIN_URL")
-                        )
+                        return redirect_to_login(request.get_full_path(), login_url)
 
                 if {"none", "consent"}.issubset(authorize.params["prompt"]):
                     raise AuthorizeError(
@@ -151,11 +152,9 @@ class AuthorizeView(View):
                     )
                 if "login" in authorize.params["prompt"]:
                     next_page = strip_prompt_login(request.get_full_path())
-                    return redirect_to_login(next_page, settings.get("OIDC_LOGIN_URL"))
+                    return redirect_to_login(next_page, login_url)
 
-                return redirect_to_login(
-                    request.get_full_path(), settings.get("OIDC_LOGIN_URL")
-                )
+                return redirect_to_login(request.get_full_path(), login_url)
 
         except (ClientIdError, RedirectUriError) as error:
             context = {

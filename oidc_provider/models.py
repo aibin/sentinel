@@ -195,6 +195,13 @@ class BaseCodeTokenModel(models.Model):
     client = models.ForeignKey(
         Client, verbose_name=_("Client"), on_delete=models.CASCADE
     )
+    organization = models.ForeignKey(
+        "Organization",
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     expires_at = models.DateTimeField(verbose_name=_("Expiration Date"))
     _scope = models.TextField(default="", verbose_name=_("Scopes"))
 

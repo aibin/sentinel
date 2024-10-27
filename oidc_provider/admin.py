@@ -14,6 +14,7 @@ from oidc_provider.models import (
     OrganizationUser,
     RSAKey,
     Token,
+    UserConsent,
 )
 
 
@@ -145,4 +146,9 @@ class OrganizationUserAdmin(admin.ModelAdmin):
 
 @admin.register(Connection)
 class ConnectionAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(UserConsent)
+class UserConsentAdmin(admin.ModelAdmin):
     pass
