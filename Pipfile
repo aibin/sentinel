@@ -12,6 +12,7 @@ pyjwkest = "*"
 djangorestframework = "*"
 celery = {extras = ["redis"], version = "*"}
 django-anymail = "*"
+social-auth-core = "*"
 
 [dev-packages]
 isort = "*"

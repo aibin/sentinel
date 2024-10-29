@@ -347,6 +347,7 @@ class Organization(models.Model):
         upload_to="oidc_provider/organizations",
         verbose_name=_("Logo Image"),
     )
+    slug = models.SlugField(max_length=255, verbose_name=_("Slug"), unique=True)
 
     website_url = models.CharField(
         max_length=255, blank=True, default="", verbose_name=_("Website URL")
@@ -389,6 +390,11 @@ class Organization(models.Model):
                 qs = qs.exclude(pk=self.pk)
             # Set default to False
             qs.update(default=False)
+
+        if not self.slug:
+            self.slug = self.name.strip().lower().replace(" ", "_")
+        else:
+            self.slug = self.slug.strip().lower().replace(" ", "_")
 
         super().save(*args, **kwargs)
 
@@ -471,6 +477,11 @@ class Connection(models.Model):
     )
 
     grants = models.ManyToManyField(Group, verbose_name=_("Grants"))
+    identity_providers = models.ManyToManyField(
+        "OrganizationIdentityProvider",
+        verbose_name=_("Identity Providers"),
+        blank=True,
+    )
 
     enable_mfa = models.BooleanField(
         default=False,
@@ -622,3 +633,27 @@ class ManagementAccessToken(models.Model):
             return True
         except (ValueError, TypeError) as e:
             return False
+
+
+class OrganizationIdentityProvider(models.Model):
+
+    PROVIDER_CHOICES = [
+        ("google-oauth2", "Google"),
+        ("microsoft-graph", "Microsoft"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        related_name="identity_providers",
+    )
+    type = models.CharField(
+        max_length=30,
+        choices=PROVIDER_CHOICES,
+        verbose_name=_("Provider"),
+    )
+    configuration = models.JSONField(verbose_name=_("Configuration"))
+
+    def __str__(self):
+        return f"{self.organization} - {self.type}"

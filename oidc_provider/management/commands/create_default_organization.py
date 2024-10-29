@@ -22,10 +22,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Use provided name or fallback to default from settings
         organization_name = options["name"] or settings.DEFAULT_ORG_NAME
+        # Create a slug from the organization name, trim, lower case and replace spaces with underscores
+        organization_slug = organization_name.strip().lower().replace(" ", "_")
 
         # get or create organization
         organization, created = Organization.objects.get_or_create(
-            name=organization_name, defaults={"default": True}
+            slug=organization_slug, defaults={"default": True, "name": organization_name}
         )
 
         if created:

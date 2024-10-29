@@ -13,6 +13,7 @@ from oidc_provider.models import (
     ManagementAccessToken,
     Organization,
     OrganizationUser,
+    OrganizationIdentityProvider,
     RSAKey,
     Token,
     UserConsent,
@@ -147,7 +148,12 @@ class OrganizationUserAdmin(admin.ModelAdmin):
 
 @admin.register(Connection)
 class ConnectionAdmin(admin.ModelAdmin):
-    pass
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        # Get the object (Connection instance) if we are editing an existing instance
+        obj = self.get_object(request, request.resolver_match.kwargs.get("object_id"))
+        if db_field.name == "identity_providers" and obj:
+            kwargs["queryset"] = OrganizationIdentityProvider.objects.filter(organization=obj.organization)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 @admin.register(UserConsent)
@@ -161,3 +167,7 @@ class ManagementAccessTokenAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+@admin.register(OrganizationIdentityProvider)
+class OrganizationIdentityProviderAdmin(admin.ModelAdmin):
+    pass

@@ -49,9 +49,11 @@ INSTALLED_APPS = [
     "core",
     "oidc_provider",
     "rest_framework",
+    "social_django",
 ]
 
 AUTHENTICATION_BACKENDS = [
+    "social_django.backends.google.GoogleOAuth2Backend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -177,3 +179,5 @@ ANYMAIL = {
 }
 
 EMAIL_DEFAULT_PLATFORM = os.getenv("EMAIL_DEFAULT_PLATFORM", "sentinel")
+
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
