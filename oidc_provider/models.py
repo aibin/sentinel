@@ -1,6 +1,11 @@
 import base64
 import binascii
+import hashlib
+import hmac
 import json
+import secrets
+import time
+from datetime import datetime
 from hashlib import md5, sha256
 
 from django.apps import apps
@@ -10,6 +15,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from shortuuid.django_fields import ShortUUIDField
+
+from oidc_provider import settings as oidc_settings
 
 CLIENT_TYPE_CHOICES = [
     ("confidential", "Confidential"),
@@ -361,6 +368,15 @@ class Organization(models.Model):
         help_text=_("Set this connection as default."),
     )
 
+    # Post password reset URL
+    post_password_update_url = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name=_("Post Password Update URL"),
+        help_text=_("Redirect URL after password update."),
+    )
+
     @classmethod
     def get_default(cls):
         return cls.objects.get(default=True)
@@ -387,6 +403,12 @@ class Organization(models.Model):
                 "user", flat=True
             )
             return User.objects.filter(id__in=org_users)
+
+    def get_organization_user_by_email(self, email):
+        try:
+            return OrganizationUser.objects.get(organization=self, user__email=email)
+        except OrganizationUser.DoesNotExist:
+            return None
 
     def get_userroles_for_client(self, user, client):
         connection_grants = []
@@ -506,6 +528,7 @@ class OrganizationUser(models.Model):
         on_delete=models.CASCADE,
         related_name="organizations",
     )
+    active = models.BooleanField(default=True, verbose_name=_("Active"))
     roles = models.ManyToManyField(Group, verbose_name=_("Roles"), blank=True)
 
     class Meta:
@@ -516,3 +539,86 @@ class OrganizationUser(models.Model):
 
     def __unicode__(self):
         return self.__str__()
+
+
+class ManagementAccessToken(models.Model):
+    id = ShortUUIDField(primary_key=True, editable=False)
+    token = models.CharField(max_length=128, unique=True, verbose_name="secret")
+    issued_on = models.DateTimeField(auto_now_add=True, verbose_name="Issued On")
+    expires_at = models.DateTimeField(verbose_name="Expiration Date")
+    revoked = models.BooleanField(default=False, verbose_name="Revoked")
+
+    class Meta:
+        verbose_name = "Management Access Token"
+        verbose_name_plural = "Management Access Tokens"
+
+    def __str__(self):
+        return self.id
+
+    @classmethod
+    def create_token(cls):
+        """Create a new opaque token and store it in the database."""
+        expires_at = datetime(9999, 12, 31, 23, 59, 59)
+
+        # Generate a unique, random opaque token
+        token = secrets.token_urlsafe(32)
+
+        # Create the token entry
+        management_token = cls.objects.create(token=token, expires_at=expires_at)
+        return management_token
+
+    def is_valid(self):
+        """Check if token is valid (not expired or revoked)."""
+        if self.revoked or self.expires_at <= timezone.now():
+            return False
+        return True
+
+    def sign_token(
+        self,
+    ):
+        # Use the current timestamp
+        timestamp = int(time.time())
+
+        # Create the message to sign (e.g., "token:timestamp")
+        message = f"{self.token}:{timestamp}".encode("utf-8")
+
+        # Generate the HMAC signature
+        signature = hmac.new(
+            self.id.encode("utf-8"), message, hashlib.sha256
+        ).hexdigest()
+
+        # Send the signature and timestamp
+        return signature, timestamp
+
+    @staticmethod
+    def verify_token(signature: str, timestamp: int):
+        try:
+            # Check if the timestamp is within an acceptable range
+            current_time = int(timezone.now().timestamp())
+            if abs(current_time - timestamp) > oidc_settings.get(
+                "OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE"
+            ):
+                raise ValueError("Timestamp out of bounds")
+
+            # Get active tokens in the database
+            all_tokens = ManagementAccessToken.objects.filter(revoked=False).all()
+            found = False
+            for token in all_tokens:
+                # Generate the expected signature with the same token and timestamp
+                message = f"{token.token}:{timestamp}".encode("utf-8")
+                expected_signature = hmac.new(
+                    token.id.encode("utf-8"), message, hashlib.sha256
+                ).hexdigest()
+
+                # Validate the signatures
+                if hmac.compare_digest(signature, expected_signature):
+                    found = True
+                    break
+
+            if not found:
+                raise ValueError("Invalid signature")
+
+            # Return success if everything is valid
+            return True
+        except (ValueError, TypeError) as e:
+            return False

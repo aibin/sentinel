@@ -9,6 +9,9 @@ shortuuid = "*"
 python-dotenv = "*"
 pycryptodome = "*"
 pyjwkest = "*"
+djangorestframework = "*"
+celery = {extras = ["redis"], version = "*"}
+django-anymail = "*"
 
 [dev-packages]
 isort = "*"

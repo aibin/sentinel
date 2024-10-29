@@ -215,4 +215,5 @@ class StandardScopeClaims(ScopeClaims):
     def scope_roles(self):
         roles = self.organization.get_userroles_for_client(self.user, self.client)
         dic = {"roles": [g.name for g in roles]}
+        dic["org_id"] = self.organization.id
         return dic

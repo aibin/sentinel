@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Django",
+            "name": "Django",
             "type": "debugpy",
             "request": "launch",
             "args": [
@@ -15,6 +15,26 @@
             "justMyCode": false,
             "autoStartBrowser": false,
             "program": "${workspaceFolder}/manage.py"
+        },
+        // Celery
+        {
+            "name": "Celery",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "celery",
+            "args": [
+                "-A",
+                "sentinel",
+                "worker",
+                "--loglevel=info"
+            ],
+            "justMyCode": false,
+        },
+    ],
+    "compounds": [
+        {
+            "name": "All Services",
+            "configurations": ["Django", "Celery"]
         }
     ]
 }

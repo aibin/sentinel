@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "core",
     "oidc_provider",
+    "rest_framework",
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -70,6 +71,9 @@ SESSION_COOKIE_NAME = "oidc_session_id"
 
 DEFAULT_ORG_NAME = os.getenv("DEFAULT_ORG_NAME", "Sentinel")
 DEFAULT_LOGIN_FIELD = os.getenv("DEFAULT_LOGIN_FIELD", "email")
+OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE = os.getenv(
+    "OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE", 3600
+)
 
 AUTH_USER_MODEL = "core.User"
 
@@ -154,3 +158,22 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Celery
+# Redis broker URL
+CELERY_BROKER_URL = "redis://localhost:6379/4"
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# settings.py
+
+# Basic email settings
+EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
+DEFAULT_FROM_EMAIL = "noreply@crewii.com"
+
+# Anymail settings
+ANYMAIL = {
+    "SENDGRID_API_KEY": "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",
+}
+
+EMAIL_DEFAULT_PLATFORM = os.getenv("EMAIL_DEFAULT_PLATFORM", "sentinel")

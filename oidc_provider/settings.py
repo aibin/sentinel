@@ -193,6 +193,13 @@ class DefaultSettings(object):
         """
         return False
 
+    @property
+    def OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE(self):
+        """
+        OPTIONAL. Management token expiration time expressed in seconds.
+        """
+        return 10 * 60  # 10 minutes
+
 
 default_settings = DefaultSettings()
 

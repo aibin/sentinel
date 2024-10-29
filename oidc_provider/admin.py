@@ -10,6 +10,7 @@ from oidc_provider.models import (
     Client,
     Code,
     Connection,
+    ManagementAccessToken,
     Organization,
     OrganizationUser,
     RSAKey,
@@ -152,3 +153,11 @@ class ConnectionAdmin(admin.ModelAdmin):
 @admin.register(UserConsent)
 class UserConsentAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(ManagementAccessToken)
+class ManagementAccessTokenAdmin(admin.ModelAdmin):
+    list_display = ["id", "token", "issued_on", "expires_at", "revoked"]
+
+    def has_add_permission(self, request):
+        return False

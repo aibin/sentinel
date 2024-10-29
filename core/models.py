@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import secrets
 
 from django.apps import apps
 from django.conf import settings
@@ -122,6 +123,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(_("first name"), max_length=150, blank=True)
     last_name = models.CharField(_("last name"), max_length=150, blank=True)
     email = models.EmailField(_("email address"), unique=True)
+    email_verified = models.BooleanField(_("email verified"), default=False)
     is_staff = models.BooleanField(
         _("staff status"),
         default=False,
@@ -161,3 +163,54 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_short_name(self):
         """Return the short name for the user."""
         return self.first_name
+
+    def save(self, *args, **kwargs):
+        if not self.username:
+            self.username = default_username(self.email)
+        super().save(*args, **kwargs)
+
+    @property
+    def full_name(self):
+        return self.get_full_name()
+
+
+class PasswordSetupToken(models.Model):
+    PURPOSE_CHOICES = [
+        ("setup", "Setup Password"),
+        ("reset", "Reset Password"),
+    ]
+    id = ShortUUIDField(primary_key=True, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="password_tokens",
+        verbose_name="User",
+    )
+    token = models.CharField(max_length=64, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    next_url = models.URLField(
+        blank=True, null=True, help_text="URL to redirect to after password setup"
+    )
+    purpose = models.CharField(max_length=10, choices=PURPOSE_CHOICES)
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Password Token"
+        verbose_name_plural = "Password Tokens"
+
+    def __str__(self):
+        return f"Token for {self.user}"
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)  # Generate a secure random token
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(
+                hours=24
+            )  # 24-hour expiration by default
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        """Check if the token is still valid (i.e., not expired)."""
+        return timezone.now() < self.expires_at and not self.used
