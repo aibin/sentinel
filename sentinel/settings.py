@@ -216,6 +216,8 @@ REST_FRAMEWORK = {
     ]
 }
 
+OIDC_OP_DEFAULT_GROUPS = os.getenv("OIDC_OP_DEFAULT_GROUPS", "admin,user").split(",")
+
 
 if ENV != "local":
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
