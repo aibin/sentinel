@@ -13,6 +13,11 @@ djangorestframework = "*"
 celery = {extras = ["redis"], version = "*"}
 django-anymail = "*"
 social-auth-core = "*"
+dj-database-url = "*"
+psycopg-binary = "*"
+psycopg = "*"
+daphne = "*"
+whitenoise = "*"
 
 [dev-packages]
 isort = "*"
