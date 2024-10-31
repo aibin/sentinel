@@ -23,8 +23,8 @@ def load_strategy(request=None):
     return get_strategy(STRATEGY, STORAGE, request)
 
 
-def load_backend(strategy, name, redirect_uri):
-    return strategy.get_backend(name, redirect_uri=redirect_uri)
+def load_backend(strategy, name, redirect_uri, **kwargs):
+    return strategy.get_backend(name, redirect_uri=redirect_uri, **kwargs)
 
 
 def psa(redirect_uri=None, load_strategy=load_strategy):
@@ -33,7 +33,9 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
         def wrapper(request, backend, *args, **kwargs):
             uri = redirect_uri
             if uri and not uri.startswith("/"):
-                uri = reverse(redirect_uri, args=(backend,))
+                new_kwargs = kwargs.copy()
+                new_kwargs["backend"] = backend
+                uri = reverse(redirect_uri, kwargs=new_kwargs)
             request.social_strategy = load_strategy(request)
             # backward compatibility in attribute name, only if not already
             # defined
@@ -42,7 +44,7 @@ def psa(redirect_uri=None, load_strategy=load_strategy):
 
             try:
                 request.backend = load_backend(
-                    request.social_strategy, backend, redirect_uri=uri
+                    request.social_strategy, backend, redirect_uri=uri, **kwargs
                 )
             except MissingBackend:
                 raise Http404("Backend not found")

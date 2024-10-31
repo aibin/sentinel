@@ -19,7 +19,7 @@ DEFAULT_SESSION_TIMEOUT = None
 @never_cache
 @maybe_require_post
 @psa(f"{NAMESPACE}:complete")
-def auth(request, backend):
+def auth(request, backend, **kwargs):
     return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME)
 
 

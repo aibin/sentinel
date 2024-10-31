@@ -45,7 +45,7 @@ from oidc_provider.lib.utils.token import (
     client_id_from_id_token,
     organization_id_from_id_token,
 )
-from oidc_provider.models import Client, ResponseType, RSAKey
+from oidc_provider.models import Client, Organization, ResponseType, RSAKey
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,8 @@ class AuthorizeView(View):
 
         try:
             authorize.validate_params()
+            # Store client_id in session to be used in post method.
+            request.session["client_id"] = authorize.client.client_id
 
             if get_attr_or_callable(request.user, "is_authenticated"):
                 # Check if there's a hook setted.
@@ -413,9 +415,10 @@ class EndSessionView(LogoutView):
 
         organization_id = organization_id_from_id_token(id_token_hint)
         if organization_id:
+            organization = Organization.objects.get(id=organization_id)
             response = redirect(next_page)
             response.delete_cookie(
-                f"{django_settings.SESSION_COOKIE_NAME}_{organization_id}"
+                f"{django_settings.SESSION_COOKIE_NAME}_{organization.slug}"
             )
             return response
 

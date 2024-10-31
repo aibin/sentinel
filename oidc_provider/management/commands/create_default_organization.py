@@ -27,7 +27,8 @@ class Command(BaseCommand):
 
         # get or create organization
         organization, created = Organization.objects.get_or_create(
-            slug=organization_slug, defaults={"default": True, "name": organization_name}
+            slug=organization_slug,
+            defaults={"default": True, "name": organization_name},
         )
 
         if created:

@@ -1,4 +1,6 @@
 # Create your views here.
+from urllib.parse import urlencode
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login
@@ -7,19 +9,78 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import View
 
+from core.constants import *
 from core.email.tasks import send_password_reset_email
 from core.models import PasswordSetupToken
-from oidc_provider.models import Organization, OrganizationUser
+from oidc_provider.models import Client, Connection, Organization, OrganizationUser
 
 User = get_user_model()
 
 
 # Create your views here.
 class LoginView(View):
+
+    def build_social_login_url(self, request, provider):
+        url = reverse(
+            "social:begin",
+            kwargs={
+                "org_slug": request.organization.slug,
+                "backend": provider.type,
+            },
+        )
+        query = {"next": request.GET.get("next", "")}
+        query_string = urlencode(query, safe="/")
+
+        return f"{url}?{query_string}"
+
+    def build_social_login_icon(self, provider):
+        if provider.type == "google-oauth2":
+            return svg_google
+        elif provider.type == "microsoft-graph":
+            return svg_microsoft
+
+    def render_login_page(self, request):
+        connection = None
+        client = None
+        try:
+            client_id = request.session.get("client_id")
+            client = Client.objects.get(client_id=client_id)
+            organization_id = request.session.get("organization_id")
+
+            connection = Connection.objects.get(
+                organization_id=organization_id, client_id=client_id
+            )
+        except Connection.DoesNotExist:
+            connection = None
+
+        providers = []
+        if connection:
+            for provider in connection.identity_providers.all():
+                providers.append(
+                    {
+                        "text": f"Login with {provider.get_type_display()}",
+                        "url": self.build_social_login_url(request, provider),
+                        "icon": self.build_social_login_icon(provider),
+                    }
+                )
+        return render(
+            request,
+            "core/login.html",
+            {
+                "name": request.organization.name,
+                "providers": providers,
+                "can_register": (
+                    connection.allow_registration
+                    if connection
+                    else client.allow_registration
+                ),
+            },
+        )
+
     def get(self, request):
         # Clear any existing messages
         messages.get_messages(request).used = True
-        return render(request, "core/login.html", {"name": request.organization.name})
+        return self.render_login_page(request)
 
     def post(self, request):
         # Get the email and password from the POST data
@@ -32,31 +93,30 @@ class LoginView(View):
         user_exist = request.organization.get_all_users().filter(email=email).exists()
         if not user_exist:
             messages.error(
-                request, "Invalid user. Please enter a valid email and password."
+                request,
+                "Invalid user. Please enter a valid email and password.",
+                extra_tags="alert-danger",
             )
-            return render(
-                request, "core/login.html", {"name": request.organization.name}
-            )
+            return self.render_login_page(request)
 
         # Check if user is active
         org_user = request.organization.get_organization_user_by_email(email=email)
         if not org_user.active:
-            messages.error(
-                request, "User is not active. Please contact your administrator."
+            messages.info(
+                request,
+                "User is not active. Please contact your administrator.",
+                extra_tags="alert-info",
             )
-            return render(
-                request, "core/login.html", {"name": request.organization.name}
-            )
+            return self.render_login_page(request)
 
         # Check if user is verified
         if not org_user.user.email_verified:
-            messages.error(
+            messages.info(
                 request,
-                "User email is not verified. Please follow the instructions in the welcome email.",
+                "User email is not verified. Please follow the link in the welcome email to verify your email.",
+                extra_tags="alert-info",
             )
-            return render(
-                request, "core/login.html", {"name": request.organization.name}
-            )
+            return self.render_login_page(request)
 
         # Authenticate the user
         user = authenticate(request, username=email, password=password)
@@ -72,13 +132,16 @@ class LoginView(View):
                 return redirect(next_url)
             else:
                 # Redirect to OIDC authorize page or some default dashboard
-                return redirect("oidc_provider:authorize")
+                url = reverse("oidc_provider:authorize")
+                return redirect(f"{url}?organization_id={request.organization.id}")
         else:
             # Add an error message for invalid credentials
-            messages.error(request, "Invalid email or password. Please try again.")
-            return render(
-                request, "core/login.html", {"name": request.organization.name}
+            messages.error(
+                request,
+                "Invalid email or password. Please try again.",
+                extra_tags="alert-danger",
             )
+            return self.render_login_page(request)
 
 
 class ForgotPasswordView(View):
@@ -107,9 +170,10 @@ class ForgotPasswordView(View):
                 url,
             )
 
-        messages.success(
+        messages.info(
             request,
-            "You will receive an email with instructions to reset your password if an account with that email exists.",
+            "If an account exists, you'll receive password reset instructions by email.",
+            extra_tags="alert-info",
         )
         return render(request, "core/forgot-password.html")
 
@@ -136,18 +200,22 @@ class PasswordSetupView(View):
                 new_password = request.POST.get("new_password")
                 confirm_password = request.POST.get("confirm_password")
                 if new_password != confirm_password:
-                    messages.error(request, "Passwords do not match.")
+                    messages.error(
+                        request, "Passwords do not match.", extra_tags="alert-danger"
+                    )
                     return render(request, "core/change-password.html")
 
                 password_token.user.set_password(new_password)
-                if token.purpose == "setup":
+                if password_token.purpose == "setup":
                     password_token.user.email_verified = True
                 password_token.user.save()
                 next_url = password_token.next_url
                 password_token.used = True
                 password_token.save()
                 messages.success(
-                    request, "Password updated successfully. Please login."
+                    request,
+                    "Password updated successfully. Please login now.",
+                    extra_tags="alert-success",
                 )
                 if next_url:
                     return redirect(next_url)

@@ -4,6 +4,7 @@ from django.conf import settings as django_settings
 from django.contrib.sessions.backends.base import UpdateError
 from django.contrib.sessions.exceptions import SessionInterrupted
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.shortcuts import render
 from django.utils.cache import patch_vary_headers
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.http import http_date
@@ -11,6 +12,7 @@ from django.utils.http import http_date
 from oidc_provider import settings
 from oidc_provider.lib.utils.common import get_browser_state_or_default
 from oidc_provider.models import Organization
+from oidc_provider.views import OIDC_TEMPLATES
 
 
 class SessionManagementMiddleware(MiddlewareMixin):
@@ -30,20 +32,35 @@ class SessionManagementMiddleware(MiddlewareMixin):
 
 class SentinelSessionMiddleware(SessionMiddleware):
     def process_request(self, request):
-        organization_id = request.GET.get("organization_id") or request.POST.get(
-            "organization_id"
-        )
-        try:
-            organization = None
-            if organization_id:
-                organization = Organization.objects.get(id=organization_id)
-            else:
-                organization = Organization.get_default()
-        except Organization.DoesNotExist:
-            raise Exception("Organization not found")
+        organization_id = None
+        organization = None
+        if request.path.startswith("/social"):
+            path_splits = request.path.split("/")
+            org_slug = path_splits[2]
+            try:
+                organization = Organization.objects.get(slug=org_slug)
+            except Organization.DoesNotExist:
+                pass
+        else:
+            organization_id = request.GET.get("organization_id") or request.POST.get(
+                "organization_id"
+            )
+            try:
+
+                if organization_id:
+                    organization = Organization.objects.get(id=organization_id)
+                else:
+                    organization = Organization.get_default()
+            except Organization.DoesNotExist:
+                context = {
+                    "error": "Organization ID Error",
+                    "description": "No organization found with the given ID or the default organization is not set.",
+                }
+
+                return render(request, OIDC_TEMPLATES["error"], context)
 
         session_key = request.COOKIES.get(
-            f"{django_settings.SESSION_COOKIE_NAME}_{organization.id}"
+            f"{django_settings.SESSION_COOKIE_NAME}_{organization.slug}"  # Todo: Change to organization.id
         )
         request.organization = organization
         request.session = self.SessionStore(session_key)
@@ -64,7 +81,9 @@ class SentinelSessionMiddleware(SessionMiddleware):
             return response
         # First check if we need to delete this cookie.
         # The session should be deleted only if the session is entirely empty.
-        cookie_name = f"{django_settings.SESSION_COOKIE_NAME}_{request.session.get('organization_id')}"
+        cookie_name = (
+            f"{django_settings.SESSION_COOKIE_NAME}_{request.organization.slug}"
+        )
         if cookie_name in request.COOKIES and empty:
             response.delete_cookie(
                 cookie_name,

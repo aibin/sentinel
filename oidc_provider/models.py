@@ -131,6 +131,11 @@ class Client(models.Model):
         verbose_name=_("Require Consent?"),
         help_text=_("If disabled, the Server will NEVER ask the user for consent."),
     )
+    allow_registration = models.BooleanField(
+        default=False,
+        verbose_name=_("Allow Registration"),
+        help_text=_("Allow new user registration."),
+    )
     _redirect_uris = models.TextField(
         default="",
         verbose_name=_("Redirect URIs"),
@@ -503,7 +508,7 @@ class Connection(models.Model):
         help_text=_("Include user roles in id_token."),
     )
 
-    # Allow nrew user registration
+    # Allow new user registration
     allow_registration = models.BooleanField(
         default=False,
         verbose_name=_("Allow Registration"),
@@ -657,3 +662,6 @@ class OrganizationIdentityProvider(models.Model):
 
     def __str__(self):
         return f"{self.organization} - {self.type}"
+
+    class Meta:
+        unique_together = ("organization", "type")

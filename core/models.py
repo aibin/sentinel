@@ -42,7 +42,8 @@ class UserManager(BaseUserManager):
         )
         username = GlobalUserModel.normalize_username(username)
         user = self.model(username=username, email=email, **extra_fields)
-        user.password = make_password(password)
+        if password:
+            user.password = make_password(password)
         user.save(using=self._db)
         return user
 
@@ -50,6 +51,8 @@ class UserManager(BaseUserManager):
         # If username is not provided, generate a default username
         if not kwargs.get("username"):
             kwargs["username"] = default_username(kwargs.get("email"))
+        if "password" not in kwargs:
+            kwargs["password"] = None
         kwargs.setdefault("is_staff", False)
         kwargs.setdefault("is_superuser", False)
         return self._create_user(*args, **kwargs)

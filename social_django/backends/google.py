@@ -1,7 +1,10 @@
-from social_core.backends.oauth import BaseOAuth2
+import requests
 from social_core.backends.google import BaseGoogleOAuth2API
+from social_core.backends.oauth import BaseOAuth2
+from social_core.utils import url_add_parameters
 
 from oidc_provider.models import Organization, OrganizationIdentityProvider
+
 
 class GoogleOAuth2Backend(BaseGoogleOAuth2API, BaseOAuth2):
     """Google OAuth2 authentication backend"""
@@ -21,16 +24,16 @@ class GoogleOAuth2Backend(BaseGoogleOAuth2API, BaseOAuth2):
         ("token_type", "token_type", True),
     ]
 
-    def __init__(self, strategy, redirect_uri=None, *args, **kwargs):
-        response = super().__init__(strategy, redirect_uri)
-        # if 'org_slug' in kwargs:
-        #     self.org_slug = kwargs['org_slug']
-        return response
-    
+    def __init__(self, *args, **kwargs):
+        self.org_slug = kwargs.pop("org_slug", None)
+        super().__init__(*args, **kwargs)
+
     def get_key_and_secret(self):
         """Return tuple with Consumer Key and Consumer Secret for current
         service provider. Must return (key, secret), order *must* be respected.
         """
-        # organization = Organization.objects.get(slug=self.org_slug)
-        idp = OrganizationIdentityProvider.objects.last()
-        return idp.configuration['client_id'], idp.configuration['client_secret']
+        organization = Organization.objects.get(slug=self.org_slug)
+        idp = OrganizationIdentityProvider.objects.get(
+            organization=organization, type="google-oauth2"
+        )
+        return idp.configuration["client_id"], idp.configuration["client_secret"]
