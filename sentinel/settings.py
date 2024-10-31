@@ -215,3 +215,8 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ]
 }
+
+
+if ENV != "local":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
