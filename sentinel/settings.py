@@ -50,7 +50,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "core",
     "oidc_provider",
-    "rest_framework",
     "social_django",
 ]
 
@@ -82,8 +81,8 @@ SESSION_COOKIE_NAME = "oidc_session_id"
 
 DEFAULT_ORG_NAME = os.getenv("DEFAULT_ORG_NAME", "Sentinel")
 DEFAULT_LOGIN_FIELD = os.getenv("DEFAULT_LOGIN_FIELD", "email")
-OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE = os.getenv(
-    "OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE", 3600
+OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE = int(
+    os.getenv("OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE", 3600)
 )
 
 AUTH_USER_MODEL = "core.User"
@@ -210,3 +209,9 @@ SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.user.user_details",
     "social_django.pipeline.user.verify_email",
 )
+
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ]
+}
