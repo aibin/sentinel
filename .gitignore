@@ -7,5 +7,3 @@ media/
 .DS_Store
 .env
 staticfiles/
-supervisord.log
-supervisord.pid
