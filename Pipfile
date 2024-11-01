@@ -19,6 +19,7 @@ psycopg = "*"
 daphne = "*"
 whitenoise = "*"
 django-cors-headers = "*"
+honcho = "*"
 
 [dev-packages]
 isort = "*"
