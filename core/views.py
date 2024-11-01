@@ -11,8 +11,8 @@ from django.views.generic import View
 
 from core.constants import *
 from core.email.tasks import send_password_reset_email
-from core.models import PasswordSetupToken
-from oidc_provider.models import Client, Connection, Organization, OrganizationUser
+from core.models import PasswordToken
+from oidc_provider.models import Client, Connection
 
 User = get_user_model()
 
@@ -158,7 +158,7 @@ class ForgotPasswordView(View):
             next_url = None
             if organization and organization.post_password_update_url:
                 next_url = organization.post_password_update_url
-            token = PasswordSetupToken.objects.create(
+            token = PasswordToken.objects.create(
                 user=User.objects.get(email=email), purpose="reset", next_url=next_url
             )
             url = reverse("core:update_password", args=[token.token])
@@ -181,7 +181,7 @@ class ForgotPasswordView(View):
 class PasswordSetupView(View):
     def get(self, request, token):
         try:
-            password_token = PasswordSetupToken.objects.get(token=token)
+            password_token = PasswordToken.objects.get(token=token)
             if password_token.is_valid():
                 return render(
                     request,
@@ -190,12 +190,12 @@ class PasswordSetupView(View):
                 )
             else:
                 return render(request, "core/invalid-token.html")
-        except PasswordSetupToken.DoesNotExist:
+        except PasswordToken.DoesNotExist:
             return render(request, "core/invalid-token.html")
 
     def post(self, request, token):
         try:
-            password_token = PasswordSetupToken.objects.get(token=token)
+            password_token = PasswordToken.objects.get(token=token)
             if password_token.is_valid():
                 new_password = request.POST.get("new_password")
                 confirm_password = request.POST.get("confirm_password")
@@ -231,7 +231,7 @@ class PasswordSetupView(View):
                     )
             else:
                 return render(request, "core/invalid-token.html")
-        except PasswordSetupToken.DoesNotExist:
+        except PasswordToken.DoesNotExist:
             return render(request, "core/invalid-token.html")
 
 

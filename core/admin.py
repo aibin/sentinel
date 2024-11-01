@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from core.models import PasswordSetupToken, User
+from core.models import PasswordToken, User
 
 
 # Register your models here.
@@ -11,7 +11,7 @@ class UserAdmin(admin.ModelAdmin):
 admin.site.register(User, UserAdmin)
 
 
-class PasswordSetupTokenAdmin(admin.ModelAdmin):
+class PasswordTokenAdmin(admin.ModelAdmin):
     readonly_fields = ("id", "token")
     list_display = (
         "id",
@@ -20,4 +20,4 @@ class PasswordSetupTokenAdmin(admin.ModelAdmin):
     )
 
 
-admin.site.register(PasswordSetupToken, PasswordSetupTokenAdmin)
+admin.site.register(PasswordToken, PasswordTokenAdmin)

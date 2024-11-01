@@ -177,7 +177,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.get_full_name()
 
 
-class PasswordSetupToken(models.Model):
+class PasswordToken(models.Model):
     PURPOSE_CHOICES = [
         ("setup", "Setup Password"),
         ("reset", "Reset Password"),

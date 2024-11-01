@@ -4,7 +4,7 @@ from logging import getLogger
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from oidc_provider.models import ManagementAccessToken
+from oidc_provider.models import ManagementToken
 
 log = getLogger(__name__)
 
@@ -13,7 +13,7 @@ class Command(BaseCommand):
     help = "Create management token."
 
     def handle(self, *args, **options):
-        token = ManagementAccessToken.create_token()
+        token = ManagementToken.create_token()
 
         if token:
             log.debug(f"Token created: f{token.token}")

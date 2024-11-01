@@ -7,13 +7,13 @@ from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 
 from oidc_provider.models import (
+    Association,
     Client,
     Code,
     Connection,
-    ManagementAccessToken,
+    IdentityProvider,
+    ManagementToken,
     Organization,
-    OrganizationIdentityProvider,
-    OrganizationUser,
     RSAKey,
     Token,
     UserConsent,
@@ -142,8 +142,8 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_display = ["id", "name", "default"]
 
 
-@admin.register(OrganizationUser)
-class OrganizationUserAdmin(admin.ModelAdmin):
+@admin.register(Association)
+class AssociationAdmin(admin.ModelAdmin):
     pass
 
 
@@ -153,7 +153,7 @@ class ConnectionAdmin(admin.ModelAdmin):
         # Get the object (Connection instance) if we are editing an existing instance
         obj = self.get_object(request, request.resolver_match.kwargs.get("object_id"))
         if db_field.name == "identity_providers" and obj:
-            kwargs["queryset"] = OrganizationIdentityProvider.objects.filter(
+            kwargs["queryset"] = IdentityProvider.objects.filter(
                 organization=obj.organization
             )
         return super().formfield_for_manytomany(db_field, request, **kwargs)
@@ -164,14 +164,14 @@ class UserConsentAdmin(admin.ModelAdmin):
     pass
 
 
-@admin.register(ManagementAccessToken)
-class ManagementAccessTokenAdmin(admin.ModelAdmin):
+@admin.register(ManagementToken)
+class ManagementTokenAdmin(admin.ModelAdmin):
     list_display = ["id", "token", "issued_on", "expires_at", "revoked"]
 
     def has_add_permission(self, request):
         return False
 
 
-@admin.register(OrganizationIdentityProvider)
-class OrganizationIdentityProviderAdmin(admin.ModelAdmin):
+@admin.register(IdentityProvider)
+class IdentityProviderAdmin(admin.ModelAdmin):
     pass

@@ -5,8 +5,8 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from core.email.tasks import send_setup_account_email, send_welcome_email
-from core.models import PasswordSetupToken
-from oidc_provider.models import Organization, OrganizationUser
+from core.models import PasswordToken
+from oidc_provider.models import Association, Organization
 
 User = get_user_model()
 
@@ -55,7 +55,7 @@ class UserCreateSerializer(serializers.Serializer):
             new_user = True
 
         # Check if the user is already part of the organization
-        organization_user, created = OrganizationUser.objects.get_or_create(
+        organization_user, created = Association.objects.get_or_create(
             user=user, organization=organization
         )
         if not created:
@@ -74,7 +74,7 @@ class UserCreateSerializer(serializers.Serializer):
             if organization and organization.post_password_update_url:
                 next_url = organization.post_password_update_url
             if new_user:
-                token = PasswordSetupToken.objects.create(
+                token = PasswordToken.objects.create(
                     user=user, purpose="setup", next_url=next_url
                 )
                 url = reverse("core:update_password", args=[token.token])
@@ -104,14 +104,14 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = ["username", "email", "first_name", "last_name"]
 
 
-class OrganizationUserResponseSerializer(serializers.ModelSerializer):
+class AssociationResponseSerializer(serializers.ModelSerializer):
     user = UserDetailSerializer(read_only=True)
     roles = serializers.SlugRelatedField(
         many=True, slug_field="name", queryset=Group.objects.all()
     )
 
     class Meta:
-        model = OrganizationUser
+        model = Association
         fields = ["id", "user", "roles", "organization", "active"]
 
 
@@ -132,12 +132,12 @@ class UserUpdateSerializer(serializers.Serializer):
     active = serializers.BooleanField(required=False)
 
     def update(self, user, validated_data):
-        # Fetch the OrganizationUser instance
+        # Fetch the Association instance
         try:
-            instance = OrganizationUser.objects.get(
+            instance = Association.objects.get(
                 user=user, organization=validated_data["organization_id"]
             )
-        except OrganizationUser.DoesNotExist:
+        except Association.DoesNotExist:
             raise serializers.ValidationError(
                 {"organization_id": "User is not part of the organization."}
             )

@@ -4,7 +4,7 @@ from django.contrib.auth.models import AnonymousUser
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from oidc_provider.models import ManagementAccessToken
+from oidc_provider.models import ManagementToken
 
 
 class SystemUser(AnonymousUser):
@@ -26,7 +26,7 @@ class ManagementTokenAuthentication(BaseAuthentication):
                 return None
 
             # Verify the token
-            management_token = ManagementAccessToken.verify_token(
+            management_token = ManagementToken.verify_token(
                 signed_token, int(timestamp)
             )
             if management_token:

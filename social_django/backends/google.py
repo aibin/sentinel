@@ -1,9 +1,7 @@
-import requests
 from social_core.backends.google import BaseGoogleOAuth2API
 from social_core.backends.oauth import BaseOAuth2
-from social_core.utils import url_add_parameters
 
-from oidc_provider.models import Organization, OrganizationIdentityProvider
+from oidc_provider.models import IdentityProvider, Organization
 
 
 class GoogleOAuth2Backend(BaseGoogleOAuth2API, BaseOAuth2):
@@ -33,7 +31,7 @@ class GoogleOAuth2Backend(BaseGoogleOAuth2API, BaseOAuth2):
         service provider. Must return (key, secret), order *must* be respected.
         """
         organization = Organization.objects.get(slug=self.org_slug)
-        idp = OrganizationIdentityProvider.objects.get(
+        idp = IdentityProvider.objects.get(
             organization=organization, type="google-oauth2"
         )
         return idp.configuration["client_id"], idp.configuration["client_secret"]

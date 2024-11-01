@@ -317,6 +317,8 @@ class UserConsent(BaseCodeTokenModel):
 
     class Meta:
         unique_together = ("user", "client", "organization")
+        verbose_name = _("User Consent")
+        verbose_name_plural = _("User Consents")
 
 
 class RSAKey(models.Model):
@@ -410,15 +412,15 @@ class Organization(models.Model):
             return User.objects.all()
         else:
             # Return user queryset from organization users model
-            org_users = OrganizationUser.objects.filter(organization=self).values_list(
+            org_users = Association.objects.filter(organization=self).values_list(
                 "user", flat=True
             )
             return User.objects.filter(id__in=org_users)
 
     def get_organization_user_by_email(self, email):
         try:
-            return OrganizationUser.objects.get(organization=self, user__email=email)
-        except OrganizationUser.DoesNotExist:
+            return Association.objects.get(organization=self, user__email=email)
+        except Association.DoesNotExist:
             return None
 
     def get_userroles_for_client(self, user, client):
@@ -431,7 +433,7 @@ class Organization(models.Model):
             try:
                 connection = Connection.objects.get(client=client, organization=self)
                 connection_grants = connection.grants.all()
-                user_connection_roles = OrganizationUser.objects.get(
+                user_connection_roles = Association.objects.get(
                     organization=self, user=user
                 ).roles.all()
                 user_roles = user.groups.union(user_connection_roles)
@@ -450,18 +452,18 @@ class Organization(models.Model):
 
 
 class Connection(models.Model):
-    # Organization
-    organization = models.ForeignKey(
-        Organization,
-        verbose_name=_("Organization"),
-        on_delete=models.CASCADE,
-        related_name="connections",
-    )
-
     # Client
     client = models.ForeignKey(
         Client,
         verbose_name=_("Client"),
+        on_delete=models.CASCADE,
+        related_name="connections",
+    )
+
+    # Organization
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name=_("Organization"),
         on_delete=models.CASCADE,
         related_name="connections",
     )
@@ -483,7 +485,7 @@ class Connection(models.Model):
 
     grants = models.ManyToManyField(Group, verbose_name=_("Grants"))
     identity_providers = models.ManyToManyField(
-        "OrganizationIdentityProvider",
+        "IdentityProvider",
         verbose_name=_("Identity Providers"),
         blank=True,
     )
@@ -530,7 +532,7 @@ class Connection(models.Model):
         return "{0} - {1}".format(self.client, self.organization)
 
 
-class OrganizationUser(models.Model):
+class Association(models.Model):
     id = ShortUUIDField(primary_key=True, editable=False)
     organization = models.ForeignKey(
         Organization,
@@ -557,7 +559,7 @@ class OrganizationUser(models.Model):
         return self.__str__()
 
 
-class ManagementAccessToken(models.Model):
+class ManagementToken(models.Model):
     id = ShortUUIDField(primary_key=True, editable=False)
     token = models.CharField(max_length=128, unique=True, verbose_name="secret")
     issued_on = models.DateTimeField(auto_now_add=True, verbose_name="Issued On")
@@ -565,8 +567,8 @@ class ManagementAccessToken(models.Model):
     revoked = models.BooleanField(default=False, verbose_name="Revoked")
 
     class Meta:
-        verbose_name = "Management Access Token"
-        verbose_name_plural = "Management Access Tokens"
+        verbose_name = "Management Token"
+        verbose_name_plural = "Management Tokens"
 
     def __str__(self):
         return self.id
@@ -617,7 +619,7 @@ class ManagementAccessToken(models.Model):
                 raise ValueError("Timestamp out of bounds")
 
             # Get active tokens in the database
-            all_tokens = ManagementAccessToken.objects.filter(revoked=False).all()
+            all_tokens = ManagementToken.objects.filter(revoked=False).all()
             found = False
             for token in all_tokens:
                 # Generate the expected signature with the same token and timestamp
@@ -640,7 +642,7 @@ class ManagementAccessToken(models.Model):
             return False
 
 
-class OrganizationIdentityProvider(models.Model):
+class IdentityProvider(models.Model):
 
     PROVIDER_CHOICES = [
         ("google-oauth2", "Google"),
@@ -665,3 +667,5 @@ class OrganizationIdentityProvider(models.Model):
 
     class Meta:
         unique_together = ("organization", "type")
+        verbose_name = _("Identity Provider")
+        verbose_name_plural = _("Identity Providers")
