@@ -413,15 +413,15 @@ class Organization(models.Model):
             return User.objects.all()
         else:
             # Return user queryset from organization users model
-            org_users = Association.objects.filter(organization=self).values_list(
+            org_users = Membership.objects.filter(organization=self).values_list(
                 "user", flat=True
             )
             return User.objects.filter(id__in=org_users)
 
     def get_organization_user_by_email(self, email):
         try:
-            return Association.objects.get(organization=self, user__email=email)
-        except Association.DoesNotExist:
+            return Membership.objects.get(organization=self, user__email=email)
+        except Membership.DoesNotExist:
             return None
 
     def get_userroles_for_client(self, user, client):
@@ -434,10 +434,10 @@ class Organization(models.Model):
             try:
                 connection = Connection.objects.get(client=client, organization=self)
                 connection_grants = connection.grants.all()
-                user_connection_roles = Association.objects.get(
+                membership_roles = Membership.objects.get(
                     organization=self, user=user
                 ).roles.all()
-                user_roles = user.groups.union(user_connection_roles)
+                user_roles = user.groups.union(membership_roles)
             except Connection.DoesNotExist:
                 connection_grants = Group.objects.all()
                 user_roles = user.groups.all()
@@ -533,7 +533,7 @@ class Connection(models.Model):
         return "{0} - {1}".format(self.client, self.organization)
 
 
-class Association(models.Model):
+class Membership(models.Model):
     id = ShortUUIDField(primary_key=True, editable=False)
     organization = models.ForeignKey(
         Organization,

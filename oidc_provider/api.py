@@ -9,9 +9,8 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from oidc_provider.authentication import ManagementTokenAuthentication
-from oidc_provider.models import Association
 from oidc_provider.serializers import (
-    AssociationResponseSerializer,
+    MembershipResponseSerializer,
     UserCreateSerializer,
     UserUpdateSerializer,
 )
@@ -27,7 +26,7 @@ def create_user(request):
     if serializer.is_valid():
         organization_user = serializer.save()
         # Serialize the Association object
-        response_serializer = AssociationResponseSerializer(organization_user)
+        response_serializer = MembershipResponseSerializer(organization_user)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -48,7 +47,7 @@ def update_user(request, user_id):
         updated_org_user = serializer.save()
 
         # Serialize the updated Association instance
-        response_serializer = AssociationResponseSerializer(updated_org_user)
+        response_serializer = MembershipResponseSerializer(updated_org_user)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

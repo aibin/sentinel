@@ -6,7 +6,7 @@ from rest_framework import serializers
 
 from core.email.tasks import send_setup_account_email, send_welcome_email
 from core.models import PasswordToken
-from oidc_provider.models import Association, Organization
+from oidc_provider.models import Membership, Organization
 
 User = get_user_model()
 
@@ -55,7 +55,7 @@ class UserCreateSerializer(serializers.Serializer):
             new_user = True
 
         # Check if the user is already part of the organization
-        organization_user, created = Association.objects.get_or_create(
+        membership, created = Membership.objects.get_or_create(
             user=user, organization=organization
         )
         if not created:
@@ -66,7 +66,7 @@ class UserCreateSerializer(serializers.Serializer):
             )
 
         # Assign roles if this is a new organization-user relationship
-        organization_user.roles.set(roles)
+        membership.roles.set(roles)
 
         # Send appropriate email if requested
         if send_email:
@@ -93,7 +93,7 @@ class UserCreateSerializer(serializers.Serializer):
                     next_url,
                 )
 
-        return organization_user
+        return membership
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
@@ -104,14 +104,14 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = ["username", "email", "first_name", "last_name"]
 
 
-class AssociationResponseSerializer(serializers.ModelSerializer):
+class MembershipResponseSerializer(serializers.ModelSerializer):
     user = UserDetailSerializer(read_only=True)
     roles = serializers.SlugRelatedField(
         many=True, slug_field="name", queryset=Group.objects.all()
     )
 
     class Meta:
-        model = Association
+        model = Membership
         fields = ["id", "user", "roles", "organization", "active"]
 
 
@@ -134,10 +134,10 @@ class UserUpdateSerializer(serializers.Serializer):
     def update(self, user, validated_data):
         # Fetch the Association instance
         try:
-            instance = Association.objects.get(
+            instance = Membership.objects.get(
                 user=user, organization=validated_data["organization_id"]
             )
-        except Association.DoesNotExist:
+        except Membership.DoesNotExist:
             raise serializers.ValidationError(
                 {"organization_id": "User is not part of the organization."}
             )

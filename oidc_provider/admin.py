@@ -7,7 +7,7 @@ from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 
 from oidc_provider.models import (
-    Association,
+    Membership,
     Client,
     Code,
     Connection,
@@ -142,7 +142,7 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_display = ["id", "name", "default"]
 
 
-@admin.register(Association)
+@admin.register(Membership)
 class AssociationAdmin(admin.ModelAdmin):
     pass
 
@@ -157,6 +157,8 @@ class ConnectionAdmin(admin.ModelAdmin):
                 organization=obj.organization
             )
         return super().formfield_for_manytomany(db_field, request, **kwargs)
+    
+    list_display = ["client", "organization", "active"]
 
 
 @admin.register(UserConsent)
