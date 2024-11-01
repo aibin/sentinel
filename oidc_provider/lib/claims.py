@@ -31,6 +31,7 @@ STANDARD_CLAIMS = {
         "postal_code": "",
         "country": "",
     },
+    "roles": [],
 }
 
 
@@ -44,6 +45,7 @@ class ScopeClaims(object):
         )
         self.scopes = token.scope
         self.client = token.client
+        self.organization = token.organization
 
     def create_response_dic(self):
         """
@@ -203,4 +205,15 @@ class StandardScopeClaims(ScopeClaims):
             }
         }
 
+        return dic
+
+    info_roles = (
+        _("Roles"),
+        _("Access the roles of this user."),
+    )
+
+    def scope_roles(self):
+        roles = self.organization.get_userroles_for_client(self.user, self.client)
+        dic = {"roles": [g.name for g in roles]}
+        dic["org_id"] = self.organization.id
         return dic

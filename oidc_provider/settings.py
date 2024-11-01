@@ -3,6 +3,7 @@ import random
 import string
 
 from django.conf import settings
+from django.urls import reverse
 
 
 class DefaultSettings(object):
@@ -13,10 +14,11 @@ class DefaultSettings(object):
 
     @property
     def OIDC_LOGIN_URL(self):
-        """
-        OPTIONAL. Used to log the user in. By default Django's LOGIN_URL will be used.
-        """
-        return settings.LOGIN_URL
+        return reverse("core:login")
+
+    @property
+    def OIDC_LOGOUT_REDIRECT_URL(self):
+        return reverse("core:logout-success")
 
     @property
     def SITE_URL(self):
@@ -190,6 +192,13 @@ class DefaultSettings(object):
         OPTIONAL: A boolean to specify whether or not to include scope in introspection response.
         """
         return False
+
+    @property
+    def OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE(self):
+        """
+        OPTIONAL. Management token expiration time expressed in seconds.
+        """
+        return 10 * 60  # 10 minutes
 
 
 default_settings = DefaultSettings()

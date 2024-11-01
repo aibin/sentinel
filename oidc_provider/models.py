@@ -1,14 +1,23 @@
 import base64
 import binascii
+import hashlib
+import hmac
 import json
+import secrets
+import time
+from datetime import datetime
+from datetime import timezone as tz
 from hashlib import md5, sha256
 
+from django.apps import apps
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-
 from shortuuid.django_fields import ShortUUIDField
+
+from oidc_provider import settings as oidc_settings
 
 CLIENT_TYPE_CHOICES = [
     ("confidential", "Confidential"),
@@ -123,6 +132,11 @@ class Client(models.Model):
         verbose_name=_("Require Consent?"),
         help_text=_("If disabled, the Server will NEVER ask the user for consent."),
     )
+    allow_registration = models.BooleanField(
+        default=False,
+        verbose_name=_("Allow Registration"),
+        help_text=_("Allow new user registration."),
+    )
     _redirect_uris = models.TextField(
         default="",
         verbose_name=_("Redirect URIs"),
@@ -193,6 +207,13 @@ class BaseCodeTokenModel(models.Model):
 
     client = models.ForeignKey(
         Client, verbose_name=_("Client"), on_delete=models.CASCADE
+    )
+    organization = models.ForeignKey(
+        "Organization",
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     expires_at = models.DateTimeField(verbose_name=_("Expiration Date"))
     _scope = models.TextField(default="", verbose_name=_("Scopes"))
@@ -296,7 +317,9 @@ class UserConsent(BaseCodeTokenModel):
     date_given = models.DateTimeField(verbose_name=_("Date Given"))
 
     class Meta:
-        unique_together = ("user", "client")
+        unique_together = ("user", "client", "organization")
+        verbose_name = _("User Consent")
+        verbose_name_plural = _("User Consents")
 
 
 class RSAKey(models.Model):
@@ -320,3 +343,330 @@ class RSAKey(models.Model):
         return "{0}".format(
             md5(self.key.encode("utf-8")).hexdigest() if self.key else ""
         )
+
+
+class Organization(models.Model):
+    id = ShortUUIDField(primary_key=True, editable=False)
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
+    # Logo
+    logo = models.FileField(
+        blank=True,
+        default="",
+        upload_to="oidc_provider/organizations",
+        verbose_name=_("Logo Image"),
+    )
+    slug = models.SlugField(max_length=255, verbose_name=_("Slug"), unique=True)
+
+    website_url = models.CharField(
+        max_length=255, blank=True, default="", verbose_name=_("Website URL")
+    )
+    terms_url = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name=_("Terms URL"),
+        help_text=_("External reference to the privacy policy of the client."),
+    )
+    contact_email = models.CharField(
+        max_length=255, blank=True, default="", verbose_name=_("Contact Email")
+    )
+
+    default = models.BooleanField(
+        default=False,
+        verbose_name=_("Default"),
+        help_text=_("Set this connection as default."),
+    )
+
+    # Post password reset URL
+    post_password_update_url = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name=_("Post Password Update URL"),
+        help_text=_("Redirect URL after password update."),
+    )
+
+    @classmethod
+    def get_default(cls):
+        return cls.objects.get(default=True)
+
+    def save(self, *args, **kwargs):
+        if self.default:
+            # Select all other active connections
+            qs = type(self).objects.filter(default=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            # Set default to False
+            qs.update(default=False)
+
+        if not self.slug:
+            self.slug = self.name.strip().lower().replace(" ", "_")
+        else:
+            self.slug = self.slug.strip().lower().replace(" ", "_")
+
+        super().save(*args, **kwargs)
+
+    def get_all_users(self):
+        User = apps.get_model(settings.AUTH_USER_MODEL)
+        if self.default:
+            # Get AUTH_USER_MODEL.
+            return User.objects.all()
+        else:
+            # Return user queryset from organization users model
+            org_users = Membership.objects.filter(organization=self).values_list(
+                "user", flat=True
+            )
+            return User.objects.filter(id__in=org_users)
+
+    def get_organization_user_by_email(self, email):
+        try:
+            return Membership.objects.get(organization=self, user__email=email)
+        except Membership.DoesNotExist:
+            return None
+
+    def get_userroles_for_client(self, user, client):
+        connection_grants = []
+        user_roles = []
+        if self.default:
+            connection_grants = Group.objects.all()
+            user_roles = user.groups.all()
+        else:
+            try:
+                connection = Connection.objects.get(client=client, organization=self)
+                connection_grants = connection.grants.all()
+                membership_roles = Membership.objects.get(
+                    organization=self, user=user
+                ).roles.all()
+                user_roles = user.groups.union(membership_roles)
+            except Connection.DoesNotExist:
+                connection_grants = Group.objects.all()
+                user_roles = user.groups.all()
+
+        roles = []
+        for role in user_roles:
+            if role in connection_grants:
+                roles.append(role)
+        return roles
+
+    def __str__(self):
+        return "{0}".format(self.name)
+
+
+class Connection(models.Model):
+    # Client
+    client = models.ForeignKey(
+        Client,
+        verbose_name=_("Client"),
+        on_delete=models.CASCADE,
+        related_name="connections",
+    )
+
+    # Organization
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        related_name="connections",
+    )
+
+    # Enable or Disable
+    active = models.BooleanField(
+        default=True,
+        verbose_name=_("Enabled"),
+        help_text=_("Enable or Disable this connection."),
+    )
+
+    # A list of emails domains that are allowed to register
+    _email_domains = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("Email Domains"),
+        help_text=_("Enter each domain on a new line."),
+    )
+
+    grants = models.ManyToManyField(Group, verbose_name=_("Grants"))
+    identity_providers = models.ManyToManyField(
+        "IdentityProvider",
+        verbose_name=_("Identity Providers"),
+        blank=True,
+    )
+
+    enable_mfa = models.BooleanField(
+        default=False,
+        verbose_name=_("Enable MFA"),
+        help_text=_("Enable Multi-Factor Authentication for this connection."),
+    )
+
+    # Prevent user auth if at least user role not in grants
+    prevent_auth = models.BooleanField(
+        default=False,
+        verbose_name=_("Prevent Auth"),
+        help_text=_("Prevent user authentication if at least user role not in grants."),
+    )
+
+    # Include user roles in id_token
+    include_roles = models.BooleanField(
+        default=False,
+        verbose_name=_("Include Roles"),
+        help_text=_("Include user roles in id_token."),
+    )
+
+    # Allow new user registration
+    allow_registration = models.BooleanField(
+        default=False,
+        verbose_name=_("Allow Registration"),
+        help_text=_("Allow new user registration."),
+    )
+
+    class Meta:
+        unique_together = ("client", "organization")
+
+    @property
+    def email_domains(self):
+        return self._email_domains.splitlines()
+
+    @email_domains.setter
+    def email_domains(self, value):
+        self._email_domains = "\n".join(value)
+
+    def __str__(self):
+        return "{0} - {1}".format(self.client, self.organization)
+
+
+class Membership(models.Model):
+    id = ShortUUIDField(primary_key=True, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        related_name="users",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("User"),
+        on_delete=models.CASCADE,
+        related_name="organizations",
+    )
+    active = models.BooleanField(default=True, verbose_name=_("Active"))
+    roles = models.ManyToManyField(Group, verbose_name=_("Roles"), blank=True)
+
+    class Meta:
+        unique_together = ("organization", "user")
+
+    def __str__(self):
+        return "{0} - {1}".format(self.organization, self.user)
+
+    def __unicode__(self):
+        return self.__str__()
+
+
+class ManagementToken(models.Model):
+    id = ShortUUIDField(primary_key=True, editable=False)
+    token = models.CharField(max_length=128, unique=True, verbose_name="secret")
+    issued_on = models.DateTimeField(auto_now_add=True, verbose_name="Issued On")
+    expires_at = models.DateTimeField(verbose_name="Expiration Date")
+    revoked = models.BooleanField(default=False, verbose_name="Revoked")
+
+    class Meta:
+        verbose_name = "Management Token"
+        verbose_name_plural = "Management Tokens"
+
+    def __str__(self):
+        return self.id
+
+    @classmethod
+    def create_token(cls):
+        """Create a new opaque token and store it in the database."""
+        expires_at = datetime(9999, 12, 31, 23, 59, 59, tzinfo=tz.utc)
+
+        # Generate a unique, random opaque token
+        token = secrets.token_urlsafe(32)
+
+        # Create the token entry
+        management_token = cls.objects.create(token=token, expires_at=expires_at)
+        return management_token
+
+    def is_valid(self):
+        """Check if token is valid (not expired or revoked)."""
+        if self.revoked or self.expires_at <= timezone.now():
+            return False
+        return True
+
+    def sign_token(
+        self,
+    ):
+        # Use the current timestamp
+        timestamp = int(time.time())
+
+        # Create the message to sign (e.g., "token:timestamp")
+        message = f"{self.token}:{timestamp}".encode("utf-8")
+
+        # Generate the HMAC signature
+        signature = hmac.new(
+            self.id.encode("utf-8"), message, hashlib.sha256
+        ).hexdigest()
+
+        # Send the signature and timestamp
+        return signature, timestamp
+
+    @staticmethod
+    def verify_token(signature: str, timestamp: int):
+        try:
+            # Check if the timestamp is within an acceptable range
+            current_time = int(timezone.now().timestamp())
+            if abs(current_time - timestamp) > oidc_settings.get(
+                "OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE"
+            ):
+                raise ValueError("Timestamp out of bounds")
+
+            # Get active tokens in the database
+            all_tokens = ManagementToken.objects.filter(revoked=False).all()
+            found = False
+            for token in all_tokens:
+                # Generate the expected signature with the same token and timestamp
+                message = f"{token.token}:{timestamp}".encode("utf-8")
+                expected_signature = hmac.new(
+                    token.id.encode("utf-8"), message, hashlib.sha256
+                ).hexdigest()
+
+                # Validate the signatures
+                if hmac.compare_digest(signature, expected_signature):
+                    found = True
+                    break
+
+            if not found:
+                raise ValueError("Invalid signature")
+
+            # Return success if everything is valid
+            return True
+        except (ValueError, TypeError) as e:
+            return False
+
+
+class IdentityProvider(models.Model):
+
+    PROVIDER_CHOICES = [
+        ("google-oauth2", "Google"),
+        ("microsoft-graph", "Microsoft"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name=_("Organization"),
+        on_delete=models.CASCADE,
+        related_name="identity_providers",
+    )
+    type = models.CharField(
+        max_length=30,
+        choices=PROVIDER_CHOICES,
+        verbose_name=_("Provider"),
+    )
+    configuration = models.JSONField(verbose_name=_("Configuration"))
+
+    def __str__(self):
+        return f"{self.organization} - {self.type}"
+
+    class Meta:
+        unique_together = ("organization", "type")
+        verbose_name = _("Identity Provider")
+        verbose_name_plural = _("Identity Providers")

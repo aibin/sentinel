@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -40,55 +41,58 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "allauth",
-    "allauth.account",
-    # Optional -- requires install using `django-allauth[socialaccount]`.
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.github",
-    "allauth.socialaccount.providers.google",
-    "allauth.socialaccount.providers.twitter",
-    "allauth.socialaccount.providers.facebook",
-    "allauth.socialaccount.providers.microsoft",
-    "allauth.socialaccount.providers.slack",
+    "core",
     "oidc_provider",
+    "social_django",
+    "axes",
 ]
 
 AUTHENTICATION_BACKENDS = [
-    # Needed to login by username in Django admin, regardless of `allauth`
+    "axes.backends.AxesStandaloneBackend",
+    "social_django.backends.google.GoogleOAuth2Backend",
     "django.contrib.auth.backends.ModelBackend",
-    # `allauth` specific authentication methods, such as login by email
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "oidc_provider.middleware.SentinelSessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
+    "axes.middleware.AxesMiddleware",
 ]
 
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = "optional" if DEBUG else "mandatory"
-ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if ENV == "local" else "https"
-ACCOUNT_MAX_EMAIL_ADDRESSES = 1
-ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
-ACCOUNT_AUTHENTICATION_METHOD = os.getenv("ACCOUNT_AUTHENTICATION_METHOD", "email")
-ACCOUNT_USERNAME_REQUIRED = False if ACCOUNT_AUTHENTICATION_METHOD == "email" else True
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
-LOGIN_URL = "/accounts/login/"
+LOGIN_URL = "/account/login/"
+
+SESSION_COOKIE_NAME = "oidc_session_id"
+
+DEFAULT_ORG_NAME = os.getenv("DEFAULT_ORG_NAME", "Sentinel")
+DEFAULT_LOGIN_FIELD = os.getenv("DEFAULT_LOGIN_FIELD", "email")
+OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE = int(
+    os.getenv("OIDC_MANAGEMENT_TOKEN_SIGNATURE_EXPIRE", 3600)
+)
+
+AUTH_USER_MODEL = "core.User"
 
 if DEBUG:
     INSTALLED_APPS.append("debug_toolbar")
+    INSTALLED_APPS.append("django_extensions")
     MIDDLEWARE.insert(8, "debug_toolbar.middleware.DebugToolbarMiddleware")
     INTERNAL_IPS = [
         "127.0.0.1",
@@ -114,6 +118,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "sentinel.wsgi.application"
+ASGI_APPLICATION = "sentinel.asgi.application"
 
 
 # Database
@@ -125,6 +130,10 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES["default"] = dj_database_url.parse(DATABASE_URL, conn_max_age=60)
 
 
 # Password validation
@@ -162,8 +171,62 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Celery
+# Redis broker URL
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# settings.py
+
+# Basic email settings
+EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@example.com")
+
+# Anymail settings
+ANYMAIL = {
+    "SENDGRID_API_KEY": os.getenv("SENDGRID_API_KEY", "you-api-key"),
+}
+
+EMAIL_DEFAULT_PLATFORM = os.getenv("EMAIL_DEFAULT_PLATFORM", "sentinel")
+
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+
+SOCIAL_AUTH_PIPELINE = (
+    "social_core.pipeline.social_auth.social_details",
+    "social_core.pipeline.social_auth.social_uid",
+    "social_core.pipeline.social_auth.social_user",
+    "social_core.pipeline.user.get_username",
+    "social_core.pipeline.social_auth.associate_by_email",
+    "social_core.pipeline.user.create_user",
+    "social_core.pipeline.social_auth.associate_user",
+    "social_core.pipeline.social_auth.load_extra_data",
+    "social_core.pipeline.user.user_details",
+    "social_django.pipeline.user.verify_email",
+)
+
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ]
+}
+
+OIDC_OP_DEFAULT_GROUPS = os.getenv("OIDC_OP_DEFAULT_GROUPS", "admin,user").split(",")
+
+AXES_LOCKOUT_CALLABLE = "core.views.lockout"
+
+
+if ENV != "local":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = "DENY"

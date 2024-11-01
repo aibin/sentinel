@@ -21,8 +21,10 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("accounts/", include("allauth.urls")),
     path("openid/", include("oidc_provider.urls", namespace="oidc_provider")),
+    path("account/", include("core.urls", namespace="core")),
+    path("social/<org_slug>/", include("social_django.urls", namespace="social")),
+    path("api/v1/", include("oidc_provider.api_v1_urls")),
 ]
 
 if settings.DEBUG:

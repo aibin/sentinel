@@ -180,22 +180,14 @@ class TokenEndpoint(object):
         elif self.params["grant_type"] == "client_credentials":
             return self.create_client_credentials_response_dic()
 
-    def create_token(self, user, client, scope):
-        token = create_token(
-            user=user,
-            client=client,
-            scope=scope,
-        )
-
-        return token
-
     def create_code_response_dic(self):
         # See https://tools.ietf.org/html/rfc6749#section-4.1
 
-        token = self.create_token(
+        token = create_token(
             user=self.code.user,
             client=self.code.client,
             scope=self.code.scope,
+            organization=self.code.organization,
         )
 
         if self.code.is_authentication:
@@ -237,7 +229,7 @@ class TokenEndpoint(object):
         if unauthorized_scopes:
             raise TokenError("invalid_scope")
 
-        token = self.create_token(
+        token = create_token(
             user=self.token.user,
             client=self.token.client,
             scope=scope,
@@ -277,7 +269,7 @@ class TokenEndpoint(object):
     def create_access_token_response_dic(self):
         # See https://tools.ietf.org/html/rfc6749#section-4.3
         token_scopes = self.validate_requested_scopes()
-        token = self.create_token(
+        token = create_token(
             self.user,
             self.client,
             token_scopes,
@@ -309,7 +301,7 @@ class TokenEndpoint(object):
         # See https://tools.ietf.org/html/rfc6749#section-4.4.3
         token_scopes = self.validate_requested_scopes()
 
-        token = self.create_token(
+        token = create_token(
             user=None,
             client=self.client,
             scope=token_scopes,

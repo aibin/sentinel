@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 
 from oidc_provider import settings, views

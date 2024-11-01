@@ -6,7 +6,18 @@ from django.contrib import admin
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 
-from oidc_provider.models import Client, Code, RSAKey, Token
+from oidc_provider.models import (
+    Client,
+    Code,
+    Connection,
+    IdentityProvider,
+    ManagementToken,
+    Membership,
+    Organization,
+    RSAKey,
+    Token,
+    UserConsent,
+)
 
 
 class ClientForm(ModelForm):
@@ -66,6 +77,7 @@ class ClientAdmin(admin.ModelAdmin):
                     "jwt_alg",
                     "require_consent",
                     "reuse_consent",
+                    "allow_registration",
                 ),
             },
         ],
@@ -123,3 +135,45 @@ class TokenAdmin(admin.ModelAdmin):
 class RSAKeyAdmin(admin.ModelAdmin):
 
     readonly_fields = ["kid"]
+
+
+@admin.register(Organization)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = ["id", "name", "default"]
+
+
+@admin.register(Membership)
+class AssociationAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(Connection)
+class ConnectionAdmin(admin.ModelAdmin):
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        # Get the object (Connection instance) if we are editing an existing instance
+        obj = self.get_object(request, request.resolver_match.kwargs.get("object_id"))
+        if db_field.name == "identity_providers" and obj:
+            kwargs["queryset"] = IdentityProvider.objects.filter(
+                organization=obj.organization
+            )
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+    list_display = ["client", "organization", "active"]
+
+
+@admin.register(UserConsent)
+class UserConsentAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(ManagementToken)
+class ManagementTokenAdmin(admin.ModelAdmin):
+    list_display = ["id", "token", "issued_on", "expires_at", "revoked"]
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(IdentityProvider)
+class IdentityProviderAdmin(admin.ModelAdmin):
+    pass

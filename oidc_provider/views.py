@@ -3,6 +3,7 @@ import logging
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from Cryptodome.PublicKey import RSA
+from django.conf import settings as django_settings
 from django.contrib.auth import logout as django_user_logout
 from django.contrib.auth.views import LogoutView, redirect_to_login
 from django.core.cache import cache
@@ -40,8 +41,11 @@ from oidc_provider.lib.utils.common import (
     redirect,
 )
 from oidc_provider.lib.utils.oauth2 import protected_resource_view
-from oidc_provider.lib.utils.token import client_id_from_id_token
-from oidc_provider.models import Client, ResponseType, RSAKey
+from oidc_provider.lib.utils.token import (
+    client_id_from_id_token,
+    organization_id_from_id_token,
+)
+from oidc_provider.models import Client, Organization, ResponseType, RSAKey
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +58,15 @@ class AuthorizeView(View):
     def get(self, request, *args, **kwargs):
         authorize = self.authorize_endpoint_class(request)
 
+        login_url = settings.get("OIDC_LOGIN_URL")
+        # Add organization_id from request.organization
+        if hasattr(request, "organization"):
+            login_url = f"{login_url}?organization_id={request.organization.id}"
+
         try:
             authorize.validate_params()
+            # Store client_id in session to be used in post method.
+            request.session["client_id"] = authorize.client.client_id
 
             if get_attr_or_callable(request.user, "is_authenticated"):
                 # Check if there's a hook setted.
@@ -75,9 +86,7 @@ class AuthorizeView(View):
                     else:
                         django_user_logout(request)
                         next_page = strip_prompt_login(request.get_full_path())
-                        return redirect_to_login(
-                            next_page, settings.get("OIDC_LOGIN_URL")
-                        )
+                        return redirect_to_login(next_page, login_url)
 
                 if "select_account" in authorize.params["prompt"]:
                     # TODO: see how we can support multiple accounts for the end-user.
@@ -89,9 +98,7 @@ class AuthorizeView(View):
                         )
                     else:
                         django_user_logout(request)
-                        return redirect_to_login(
-                            request.get_full_path(), settings.get("OIDC_LOGIN_URL")
-                        )
+                        return redirect_to_login(request.get_full_path(), login_url)
 
                 if {"none", "consent"}.issubset(authorize.params["prompt"]):
                     raise AuthorizeError(
@@ -124,6 +131,7 @@ class AuthorizeView(View):
                 # Generate hidden inputs for the form.
                 context = {
                     "params": authorize.params,
+                    "request": request,
                 }
                 hidden_inputs = render_to_string(
                     "oidc_provider/hidden_inputs.html", context
@@ -151,11 +159,9 @@ class AuthorizeView(View):
                     )
                 if "login" in authorize.params["prompt"]:
                     next_page = strip_prompt_login(request.get_full_path())
-                    return redirect_to_login(next_page, settings.get("OIDC_LOGIN_URL"))
+                    return redirect_to_login(next_page, login_url)
 
-                return redirect_to_login(
-                    request.get_full_path(), settings.get("OIDC_LOGIN_URL")
-                )
+                return redirect_to_login(request.get_full_path(), login_url)
 
         except (ClientIdError, RedirectUriError) as error:
             context = {
@@ -377,7 +383,7 @@ class EndSessionView(LogoutView):
         state = request.GET.get("state", "")
         client = None
 
-        next_page = settings.get("OIDC_LOGIN_URL")
+        next_page = settings.get("OIDC_LOGOUT_REDIRECT_URL")
         after_end_session_hook = settings.get(
             "OIDC_AFTER_END_SESSION_HOOK", import_str=True
         )
@@ -407,8 +413,16 @@ class EndSessionView(LogoutView):
             next_page=next_page,
         )
 
-        self.next_page = next_page
-        return super(EndSessionView, self).dispatch(request, *args, **kwargs)
+        organization_id = organization_id_from_id_token(id_token_hint)
+        if organization_id:
+            organization = Organization.objects.get(id=organization_id)
+            response = redirect(next_page)
+            response.delete_cookie(
+                f"{django_settings.SESSION_COOKIE_NAME}_{organization.slug}"
+            )
+            return response
+
+        return redirect(next_page)
 
 
 class CheckSessionIframeView(View):

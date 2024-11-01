@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run isort
-isort .
+isort --profile black .
 
 # Run black
 black .
