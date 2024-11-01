@@ -5,7 +5,7 @@ from oidc_provider.models import ResponseType
 
 
 class Command(BaseCommand):
-    help = "Populate the response types model with default values"
+    help = "Create the response types model with default values"
 
     def handle(self, *args, **options):
         RESPONSE_TYPES = [

@@ -9,7 +9,7 @@ log = getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Create the default organization."
+    help = "Create groups."
 
     def handle(self, *args, **options):
         # Create the default groups

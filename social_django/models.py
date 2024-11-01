@@ -83,11 +83,11 @@ class UserSocialAuth(AbstractUserSocialAuth):
     """Social Auth association model"""
 
     class Meta:
-        """Meta data"""
-
         app_label = "social_django"
         unique_together = ("provider", "uid")
         db_table = "social_auth_usersocialauth"
+        verbose_name = "User Social Auth"
+        verbose_name_plural = "User Social Auths"
 
 
 class Nonce(models.Model, DjangoNonceMixin):

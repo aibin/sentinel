@@ -10,7 +10,7 @@ log = getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Create the default organization."
+    help = "Create an organization."
 
     def add_arguments(self, parser):
         parser.add_argument(

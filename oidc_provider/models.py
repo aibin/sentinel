@@ -6,6 +6,7 @@ import json
 import secrets
 import time
 from datetime import datetime
+from datetime import timezone as tz
 from hashlib import md5, sha256
 
 from django.apps import apps
@@ -576,7 +577,7 @@ class ManagementToken(models.Model):
     @classmethod
     def create_token(cls):
         """Create a new opaque token and store it in the database."""
-        expires_at = datetime(9999, 12, 31, 23, 59, 59)
+        expires_at = datetime(9999, 12, 31, 23, 59, 59, tzinfo=tz.utc)
 
         # Generate a unique, random opaque token
         token = secrets.token_urlsafe(32)
