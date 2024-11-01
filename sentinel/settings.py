@@ -51,9 +51,11 @@ INSTALLED_APPS = [
     "core",
     "oidc_provider",
     "social_django",
+    "axes",
 ]
 
 AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
     "social_django.backends.google.GoogleOAuth2Backend",
     "django.contrib.auth.backends.ModelBackend",
 ]
@@ -67,6 +69,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "axes.middleware.AxesMiddleware",
 ]
 
 STORAGES = {
@@ -217,6 +220,8 @@ REST_FRAMEWORK = {
 }
 
 OIDC_OP_DEFAULT_GROUPS = os.getenv("OIDC_OP_DEFAULT_GROUPS", "admin,user").split(",")
+
+AXES_LOCKOUT_CALLABLE = "core.views.lockout"
 
 
 if ENV != "local":

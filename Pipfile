@@ -21,6 +21,7 @@ whitenoise = "*"
 django-cors-headers = "*"
 honcho = "*"
 gevent = "*"
+django-axes = {extras = ["ipware"], version = "*"}
 
 [dev-packages]
 isort = "*"

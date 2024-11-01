@@ -252,3 +252,7 @@ class SuccessView(View):
         return render(
             request, "core/success.html", {"title": title, "subtitle": subtitle}
         )
+
+
+def lockout(request, *args, **kwargs):
+    return render(request, "core/lockout.html")

@@ -7,12 +7,12 @@ from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 
 from oidc_provider.models import (
-    Membership,
     Client,
     Code,
     Connection,
     IdentityProvider,
     ManagementToken,
+    Membership,
     Organization,
     RSAKey,
     Token,
@@ -157,7 +157,7 @@ class ConnectionAdmin(admin.ModelAdmin):
                 organization=obj.organization
             )
         return super().formfield_for_manytomany(db_field, request, **kwargs)
-    
+
     list_display = ["client", "organization", "active"]
 
 

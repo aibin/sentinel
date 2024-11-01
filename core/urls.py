@@ -17,4 +17,5 @@ urlpatterns = [
     path("register/", views.RegisterView.as_view(), name="register"),
     path("logout-success/", views.LogoutSuccessView.as_view(), name="logout-success"),
     path("success/", views.SuccessView.as_view(), name="success"),
+    path("lockout/", views.lockout, name="lockout"),
 ]
