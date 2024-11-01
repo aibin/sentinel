@@ -6,3 +6,5 @@
 ./manage.py createmgmttoken
 ./manage.py createsuperuser
 ./manage.py creategroups
+
+# Honcho for staging
