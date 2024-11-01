@@ -20,6 +20,7 @@ daphne = "*"
 whitenoise = "*"
 django-cors-headers = "*"
 honcho = "*"
+gevent = "*"
 
 [dev-packages]
 isort = "*"

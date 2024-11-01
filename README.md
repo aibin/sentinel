@@ -8,3 +8,4 @@
 ./manage.py creategroups
 
 # Honcho for staging
+honcho start -f honcho.ini
