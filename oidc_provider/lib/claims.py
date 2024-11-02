@@ -9,6 +9,7 @@ STANDARD_CLAIMS = {
     "given_name": "",
     "family_name": "",
     "middle_name": "",
+    "full_name": "",
     "nickname": "",
     "preferred_username": "",
     "profile": "",
@@ -155,6 +156,8 @@ class StandardScopeClaims(ScopeClaims):
             "locale": self.userinfo.get("locale"),
             "updated_at": self.userinfo.get("updated_at"),
         }
+
+        dic['full_name'] = f"{dic['given_name']} {dic['family_name']}"
 
         return dic
 
