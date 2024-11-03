@@ -222,6 +222,7 @@ REST_FRAMEWORK = {
 OIDC_OP_DEFAULT_GROUPS = os.getenv("OIDC_OP_DEFAULT_GROUPS", "admin,user").split(",")
 
 AXES_LOCKOUT_CALLABLE = "core.views.lockout"
+AXES_FAILURE_LIMIT = 5
 
 
 if ENV != "local":
