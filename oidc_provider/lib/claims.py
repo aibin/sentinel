@@ -157,7 +157,7 @@ class StandardScopeClaims(ScopeClaims):
             "updated_at": self.userinfo.get("updated_at"),
         }
 
-        dic['full_name'] = f"{dic['given_name']} {dic['family_name']}"
+        dic["full_name"] = f"{dic['given_name']} {dic['family_name']}"
 
         return dic
 
