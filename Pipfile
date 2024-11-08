@@ -22,6 +22,7 @@ django-cors-headers = "*"
 honcho = "*"
 gevent = "*"
 django-axes = {extras = ["ipware"], version = "*"}
+sentry-sdk = {extras = ["django"], version = "*"}
 
 [dev-packages]
 isort = "*"

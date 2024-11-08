@@ -15,6 +15,8 @@ from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
+import sentry_sdk
+
 
 load_dotenv()
 
@@ -236,3 +238,15 @@ if ENV != "local":
         "HTTP_X_FORWARDED_FOR",
         "REMOTE_ADDR",
     ]
+
+    sentry_sdk.init(
+        dsn="https://9ecd5555f5379f507d09ad02dd3b8c21@o4507640291524608.ingest.us.sentry.io/4508264292024320",
+        environment=ENV,
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for performance monitoring.
+        traces_sample_rate=1.0,
+        # Set profiles_sample_rate to 1.0 to profile 100%
+        # of sampled transactions.
+        # We recommend adjusting this value in production.
+        profiles_sample_rate=1.0,
+    )
