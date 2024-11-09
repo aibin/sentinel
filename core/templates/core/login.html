@@ -67,7 +67,9 @@
                         <a href="/account/forgot-password/?organization_id={{ request.organization.id }}">Forgot password?</a>
                     </span>
                     <div class="form-footer">
-                        <button type="submit" class="btn btn-primary w-100 fs-3">Log in</button>
+                        <button type="submit"
+                                _="on click add .btn-loading to me"
+                                class="btn btn-primary w-100 fs-3">Log in</button>
                     </div>
                 </form>
                 {% if messages %}
