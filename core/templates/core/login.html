@@ -2,7 +2,7 @@
 {% block layout %}
     <div class="container container-tight py-4">
         <div class="text-center mb-4">
-            <a href="." class="navbar-brand navbar-brand-autodark">
+            <a class="navbar-brand navbar-brand-autodark">
                 <svg xmlns="http://www.w3.org/2000/svg"
                      width="110"
                      height="32"
@@ -35,30 +35,16 @@
                         <label class="form-label fs-3">Password</label>
                         <div class="input-group input-group-flat">
                             <input name="password"
+                                   id="password"
                                    type="password"
                                    class="form-control"
                                    placeholder="Your password"
                                    autocomplete="off">
                             <span class="input-group-text">
-                                <a href="#"
-                                   class="link-secondary"
-                                   data-bs-toggle="tooltip"
-                                   aria-label="Show password"
-                                   data-bs-original-title="Show password"><!-- Download SVG icon from http://tabler-icons.io/i/eye -->
-                                    <svg xmlns="http://www.w3.org/2000/svg"
-                                         width="24"
-                                         height="24"
-                                         viewBox="0 0 24 24"
-                                         fill="none"
-                                         stroke="currentColor"
-                                         stroke-width="2"
-                                         stroke-linecap="round"
-                                         stroke-linejoin="round"
-                                         class="icon">
-                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                        <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"></path>
-                                        <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"></path>
-                                    </svg>
+                                <a class="link-secondary"
+                                   onclick="togglePassword()"
+                                   aria-label="Show password">
+                                    <i id="toggle-icon" class="bi bi-eye-fill"></i>
                                 </a>
                             </span>
                         </div>
@@ -101,3 +87,21 @@
         {% endif %}
     </div>
 {% endblock layout %}
+{% block extra_js %}
+    <script>
+    function togglePassword() {
+        const passwordField = document.getElementById("password");
+        const toggleIcon = document.getElementById("toggle-icon");
+        // Toggle the type of the password field
+        if (passwordField.type === "password") {
+            passwordField.type = "text";
+            toggleIcon.classList.remove("bi-eye-fill");
+            toggleIcon.classList.add("bi-eye-slash-fill");
+        } else {
+            passwordField.type = "password";
+            toggleIcon.classList.remove("bi-eye-slash-fill");
+            toggleIcon.classList.add("bi-eye-fill");
+        }
+    }
+    </script>
+{% endblock extra_js %}
