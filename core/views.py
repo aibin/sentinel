@@ -181,6 +181,7 @@ class ForgotPasswordView(View):
 class PasswordSetupView(View):
     def get(self, request, token):
         try:
+            messages.get_messages(request).used = True
             password_token = PasswordToken.objects.get(token=token)
             if password_token.is_valid():
                 return render(
@@ -195,6 +196,7 @@ class PasswordSetupView(View):
 
     def post(self, request, token):
         try:
+            messages.get_messages(request).used = True
             password_token = PasswordToken.objects.get(token=token)
             if password_token.is_valid():
                 new_password = request.POST.get("new_password")
@@ -203,7 +205,11 @@ class PasswordSetupView(View):
                     messages.error(
                         request, "Passwords do not match.", extra_tags="alert-danger"
                     )
-                    return render(request, "core/change-password.html")
+                    return render(
+                        request,
+                        "core/change-password.html",
+                        {"purpose": password_token.purpose.capitalize()},
+                    )
 
                 password_token.user.set_password(new_password)
                 if password_token.purpose == "setup":

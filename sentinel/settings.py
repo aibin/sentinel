@@ -191,6 +191,9 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # Basic email settings
 EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@example.com")
+DEFAULT_TO_EMAIL = os.getenv(
+    "DEFAULT_TO_EMAIL", "test@example.com"
+)  # This is the email address that will receive all emails in non prod environments
 
 # Anymail settings
 ANYMAIL = {

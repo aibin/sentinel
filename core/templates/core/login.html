@@ -42,7 +42,7 @@
                                    autocomplete="off">
                             <span class="input-group-text">
                                 <a class="link-secondary"
-                                   onclick="togglePassword()"
+                                   onclick="togglePassword('password')"
                                    aria-label="Show password">
                                     <i id="toggle-icon" class="bi bi-eye-fill"></i>
                                 </a>
@@ -88,20 +88,5 @@
     </div>
 {% endblock layout %}
 {% block extra_js %}
-    <script>
-    function togglePassword() {
-        const passwordField = document.getElementById("password");
-        const toggleIcon = document.getElementById("toggle-icon");
-        // Toggle the type of the password field
-        if (passwordField.type === "password") {
-            passwordField.type = "text";
-            toggleIcon.classList.remove("bi-eye-fill");
-            toggleIcon.classList.add("bi-eye-slash-fill");
-        } else {
-            passwordField.type = "password";
-            toggleIcon.classList.remove("bi-eye-slash-fill");
-            toggleIcon.classList.add("bi-eye-fill");
-        }
-    }
-    </script>
+    <script src="{% static 'core/js/sentinel.js'%}"></script>
 {% endblock extra_js %}

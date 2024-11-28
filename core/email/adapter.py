@@ -26,6 +26,9 @@ class EmailAdapter:
         plain_message = strip_tags(html_message)  # Fallback plain text version
         from_email = from_email or settings.DEFAULT_FROM_EMAIL
 
+        if settings.ENV != "prod":
+            recipient_list = [settings.DEFAULT_TO_EMAIL]
+
         # Send the email
         send_mail(
             subject=subject,
