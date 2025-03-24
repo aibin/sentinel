@@ -17,6 +17,7 @@ This guide is intended for administrators who need to set up, configure, and man
    - [Creating Organizations](#creating-organizations)
    - [Organization Settings](#organization-settings)
    - [Branding Customization](#branding-customization)
+   - [Testing Organization Login](#testing-organization-login)
 5. [Client Management](#client-management)
    - [Creating Clients](#creating-clients)
    - [Configuring Client Settings](#configuring-client-settings)
@@ -197,6 +198,148 @@ Customize the login experience for each organization:
 2. Upload a logo image
 3. Configure custom CSS (if supported)
 4. Set organization-specific email templates
+
+### Testing Organization Login
+
+After setting up an organization, it's important to test the login experience to ensure it works as expected. Here's a step-by-step guide to testing organization-specific login:
+
+1. **Create a Test Organization**
+
+   If you haven't already created a test organization, do so using either the admin interface or the management command:
+   ```sh
+   ./manage.py createorganization --name "Test Organization" --slug test-org
+   ```
+
+2. **Create a Test Client**
+
+   Create a client application that will be associated with your test organization:
+   - Navigate to `/admin/oidc_provider/client/add/`
+   - Fill in client details (name, client type, etc.)
+   - Set redirect URIs (you can use `http://localhost:8000/callback` for testing)
+   - Associate the client with your test organization
+
+3. **Create a Test User**
+
+   Create a user who belongs to your test organization:
+   ```sh
+   ./manage.py createuser --email testuser@example.com --first-name Test --last-name User --org test-org
+   ```
+
+4. **Construct a Test Login URL**
+
+   To test organization-specific login, construct a URL with the following format:
+   ```
+   https://your-sentinel-domain.com/account/login/?organization=test-org
+   ```
+
+   For a complete test with authorization flow, use:
+   ```
+   https://your-sentinel-domain.com/account/login/?organization=test-org&next=/openid/authorize/?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:8000/callback&scope=openid%20profile%20email
+   ```
+
+5. **Test the Login Flow**
+
+   - Open the test URL in a browser
+   - Verify that the organization's branding appears correctly
+   - Log in with the test user credentials
+   - Verify that you're redirected properly and the authorization flow completes
+
+6. **Verify Connection with Social Providers (if configured)**
+
+   If you've set up social providers for this organization:
+   - Click on the social login button
+   - Authenticate with the social provider
+   - Verify that you're redirected back and authenticated properly
+
+7. **Command Line Testing**
+
+   You can also use command-line tools like `curl` to test the login process programmatically:
+
+   ```sh
+   # First, get the login page with organization context
+   curl -v "https://your-sentinel-domain.com/account/login/?organization=test-org"
+   
+   # Then, simulate a form submission (replace username/password with actual credentials)
+   curl -v -X POST "https://your-sentinel-domain.com/account/login/?organization=test-org" \
+     -d "email=testuser@example.com&password=yourpassword" \
+     -H "Content-Type: application/x-www-form-urlencoded"
+   ```
+
+8. **Test Organization Detection**
+
+   If you're using domain-based organization detection:
+   
+   a. Add a test domain to your organization in the admin panel
+   
+   b. Update your hosts file (e.g., `/etc/hosts` on Linux/Mac or `C:\Windows\System32\drivers\etc\hosts` on Windows) to point a test domain to your local instance:
+   ```
+   127.0.0.1 testorg.localhost
+   ```
+   
+   c. Access your Sentinel instance using this domain and verify that the correct organization is detected automatically:
+   ```
+   http://testorg.localhost:8000/account/login/
+   ```
+
+**Example Script for Testing Multiple Organizations**
+
+Here's a Python script you can use to automate testing multiple organizations:
+
+```python
+#!/usr/bin/env python
+import requests
+import sys
+import webbrowser
+from urllib.parse import urlencode
+
+def test_organization_login(org_slug, client_id, base_url="http://localhost:8000"):
+    """
+    Generate and open a test login URL for the specified organization
+    """
+    # Construct authorization parameters
+    auth_params = {
+        'response_type': 'code',
+        'client_id': client_id,
+        'redirect_uri': f'{base_url}/callback',
+        'scope': 'openid profile email',
+        'state': 'test_state',
+        'nonce': 'test_nonce'
+    }
+    
+    # Construct the next URL (authorize endpoint with params)
+    next_url = f"/openid/authorize/?{urlencode(auth_params)}"
+    
+    # Construct the login URL with organization context
+    login_params = {
+        'organization': org_slug,
+        'next': next_url
+    }
+    login_url = f"{base_url}/account/login/?{urlencode(login_params)}"
+    
+    print(f"Testing login for organization: {org_slug}")
+    print(f"Login URL: {login_url}")
+    
+    # Open the URL in the default browser
+    webbrowser.open(login_url)
+    
+    return login_url
+
+if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        print("Usage: python test_org_login.py ORG_SLUG CLIENT_ID [BASE_URL]")
+        sys.exit(1)
+    
+    org_slug = sys.argv[1]
+    client_id = sys.argv[2]
+    base_url = sys.argv[3] if len(sys.argv) > 3 else "http://localhost:8000"
+    
+    test_organization_login(org_slug, client_id, base_url)
+```
+
+Save this script as `test_org_login.py` and run it with:
+```sh
+python test_org_login.py test-org YOUR_CLIENT_ID
+```
 
 ## Client Management
 

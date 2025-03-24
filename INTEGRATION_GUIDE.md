@@ -11,16 +11,20 @@ This guide provides step-by-step instructions for integrating your application w
    - [Authorization Code Flow](#authorization-code-flow)
    - [Implicit Flow](#implicit-flow)
    - [Hybrid Flow](#hybrid-flow)
-5. [Implementation Guides](#implementation-guides)
+5. [Organization-Specific Login](#organization-specific-login)
+   - [Organization Context](#organization-context)
+   - [Implementation Examples](#implementation-examples)
+   - [Custom Branding](#custom-branding)
+6. [Implementation Guides](#implementation-guides)
    - [Web Applications](#web-applications)
    - [Single Page Applications](#single-page-applications)
    - [Mobile Applications](#mobile-applications)
    - [Backend APIs](#backend-apis)
-6. [Token Handling](#token-handling)
-7. [User Information](#user-information)
-8. [Logout](#logout)
-9. [Best Practices](#best-practices)
-10. [Troubleshooting](#troubleshooting)
+7. [Token Handling](#token-handling)
+8. [User Information](#user-information)
+9. [Logout](#logout)
+10. [Best Practices](#best-practices)
+11. [Troubleshooting](#troubleshooting)
 
 ## Overview
 
@@ -138,6 +142,223 @@ Combines aspects of both Authorization Code and Implicit flows.
 
 2. **Response**:
    Returns both an authorization code and tokens in the redirect URI.
+
+## Organization-Specific Login
+
+Sentinel's multi-tenant architecture allows for organization-specific login experiences. This is particularly useful when building applications that serve multiple organizations, each with their own branding and identity providers.
+
+### Organization Context
+
+When redirecting users to Sentinel for authentication, you can specify which organization context to use by including the `organization_id` parameter in your authorization requests.
+
+**Example Authorization Request with Organization ID:**
+```
+GET /openid/authorize/?
+  response_type=code&
+  client_id=YOUR_CLIENT_ID&
+  redirect_uri=https://your-app.com/callback&
+  scope=openid profile email&
+  state=RANDOM_STATE_VALUE&
+  nonce=RANDOM_NONCE_VALUE&
+  organization_id=your-organization-id
+```
+
+Alternatively, you can use the organization slug in the login URL:
+```
+GET /account/login/?
+  organization=your-organization-slug&
+  next=/openid/authorize/?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=https://your-app.com/callback&...
+```
+
+### Implementation Examples
+
+#### 1. Web Application Organization Selection
+
+For applications that serve multiple organizations, you might implement an organization selection screen:
+
+**Example Organization Selection Page (Python/Django):**
+```python
+# views.py
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from your_app.models import Organization
+
+def select_organization(request):
+    organizations = Organization.objects.filter(active=True)
+    return render(request, 'select_organization.html', {'organizations': organizations})
+
+def login(request, org_slug):
+    # Build the authorization URL with organization context
+    organization = Organization.objects.get(slug=org_slug)
+    
+    base_url = "https://sentinel.example.com/account/login/"
+    next_url = "/openid/authorize/?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=https://your-app.com/callback&scope=openid%20profile%20email&state=STATE&nonce=NONCE"
+    
+    login_url = f"{base_url}?organization={org_slug}&next={next_url}"
+    return redirect(login_url)
+```
+
+**HTML Template (select_organization.html):**
+```html
+<html>
+<head>
+    <title>Select Your Organization</title>
+    <style>
+        .org-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .org-card {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            width: 200px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .org-logo {
+            max-width: 150px;
+            max-height: 80px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Select Your Organization</h1>
+    <div class="org-list">
+        {% for org in organizations %}
+            <a href="{% url 'login' org.slug %}" class="org-card">
+                {% if org.logo %}
+                    <img src="{{ org.logo.url }}" alt="{{ org.name }}" class="org-logo">
+                {% endif %}
+                <h3>{{ org.name }}</h3>
+            </a>
+        {% endfor %}
+    </div>
+</body>
+</html>
+```
+
+#### 2. Organization Detection Based on Domain (JavaScript/React)
+
+For applications that can determine the organization based on the URL or subdomain:
+
+```jsx
+import React, { useEffect } from 'react';
+import { useAuth } from 'react-oidc-context';
+
+function LoginButton() {
+  const auth = useAuth();
+  
+  // Function to detect organization from subdomain
+  const getOrganizationFromUrl = () => {
+    const hostname = window.location.hostname;
+    // For subdomain-based organization detection (e.g., acme.yourapp.com)
+    const subdomain = hostname.split('.')[0];
+    
+    // Map subdomains to organization IDs or use an API call
+    const orgMap = {
+      'acme': 'acme-org-id',
+      'globex': 'globex-org-id',
+      // Add more mappings as needed
+    };
+    
+    return orgMap[subdomain] || 'default-org-id';
+  };
+  
+  const handleLogin = () => {
+    const orgId = getOrganizationFromUrl();
+    // Call signin with additional organization_id parameter
+    auth.signinRedirect({
+      extraQueryParams: {
+        organization_id: orgId
+      }
+    });
+  };
+  
+  return (
+    <button onClick={handleLogin}>
+      Log In with Your Organization
+    </button>
+  );
+}
+```
+
+#### 3. Server-Side Login URL Generation (Node.js/Express)
+
+```javascript
+const express = require('express');
+const router = express.Router();
+
+// Helper function to generate Sentinel login URL
+function generateSentinelLoginUrl(orgSlug, clientId, redirectUri) {
+  const baseLoginUrl = 'https://sentinel.example.com/account/login/';
+  const nextUrl = encodeURIComponent(`/openid/authorize/?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid%20profile%20email&state=${generateRandomState()}&nonce=${generateRandomNonce()}`);
+  
+  return `${baseLoginUrl}?organization=${orgSlug}&next=${nextUrl}`;
+}
+
+// Route to handle organization-specific login
+router.get('/login/:orgSlug', (req, res) => {
+  const { orgSlug } = req.params;
+  const clientId = process.env.SENTINEL_CLIENT_ID;
+  const redirectUri = `${process.env.APP_URL}/auth/callback`;
+  
+  const loginUrl = generateSentinelLoginUrl(orgSlug, clientId, redirectUri);
+  res.redirect(loginUrl);
+});
+
+function generateRandomState() {
+  // Generate a secure random string for state parameter
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+}
+
+function generateRandomNonce() {
+  // Generate a secure random string for nonce parameter
+  return Math.random().toString(36).substring(2, 10);
+}
+
+module.exports = router;
+```
+
+### Custom Branding
+
+Sentinel allows each organization to have custom branding elements, which are automatically applied when using organization-specific login:
+
+1. **Organization Logo**: Displayed on the login page
+2. **Custom Colors**: Organization-specific theme colors
+3. **Custom Text**: Welcome messages and instructions
+
+When implementing your application, you can also reflect this branding for a consistent user experience:
+
+```javascript
+// Example of fetching organization branding information
+async function getOrganizationBranding(orgId) {
+  const response = await fetch(`https://sentinel.example.com/api/v1/organization/${orgId}/branding`, {
+    headers: {
+      'Authorization': `Bearer ${managementToken}`
+    }
+  });
+  
+  return await response.json();
+}
+
+// Apply branding to your application
+async function applyOrganizationBranding(orgId) {
+  const branding = await getOrganizationBranding(orgId);
+  
+  // Apply primary color to CSS variables
+  document.documentElement.style.setProperty('--primary-color', branding.primaryColor);
+  
+  // Set logo
+  document.getElementById('orgLogo').src = branding.logoUrl;
+  
+  // Set organization name
+  document.getElementById('orgName').textContent = branding.name;
+}
+```
 
 ## Implementation Guides
 
