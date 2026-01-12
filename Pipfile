@@ -31,6 +31,7 @@ ipython = "*"
 djlint = "*"
 django-debug-toolbar = "*"
 django-extensions = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.11"
