@@ -10,7 +10,7 @@ python-dotenv = "*"
 pycryptodome = "*"
 pyjwkest = "*"
 djangorestframework = "*"
-celery = {extras = ["redis"], version = "*"}
+celery = {extras = ["redis"] }
 django-anymail = "*"
 social-auth-core = "*"
 dj-database-url = "*"
@@ -20,9 +20,9 @@ daphne = "*"
 whitenoise = "*"
 django-cors-headers = "*"
 honcho = "*"
-gevent = "*"
-django-axes = {extras = ["ipware"], version = "*"}
-sentry-sdk = {extras = ["django"], version = "*"}
+gevent = "==24.10.3"
+django-axes = {extras = ["ipware"] }
+sentry-sdk = {extras = ["django"] }
 
 [dev-packages]
 isort = "*"
@@ -31,6 +31,7 @@ ipython = "*"
 djlint = "*"
 django-debug-toolbar = "*"
 django-extensions = "*"
+pytest-django = "*"
 pytest = "*"
 
 [requires]
